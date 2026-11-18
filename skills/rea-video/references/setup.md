@@ -1,6 +1,7 @@
 # Fork setup and agent review
 
-This fork uses your current image-capable agent for visual review. External VLM
+This fork uses your current image-capable agent for visual review. English is the
+default CLI and report language; use `--lang zh` for a Chinese report. External VLM
 API calls are disabled. API keys and old `vlm=on` preferences cannot enable them.
 ONNX Runtime's 1DS telemetry is disabled before package initialization reaches
 any OCR or inference imports. Run the CLI in a fresh process.

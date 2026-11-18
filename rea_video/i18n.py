@@ -1,13 +1,14 @@
 """Report language.
 
-Chinese is the source language of every user-facing string; English sits next to it. Two helpers:
+Bilingual report strings keep Chinese and English together. CLI help and status messages use English.
+Two helpers:
 
   T("中文", "English")          pick the string for the current report language (optional .format kwargs)
   LangDict(zh={...}, en={...})  a code -> text mapping that resolves per language, so existing `X_ZH[code]`
                                 lookups (and the `*_zh` fields they fill in breakdown.json) follow the language
 
 The language is set once per run (`set_lang`), from `--lang` / prefs, and stored in breakdown["lang"] so
-`finalize` / `summary` / `apply-review` render later in the same language. Default: zh.
+`finalize` / `summary` / `apply-review` render later in the same language. Default: en.
 """
 from __future__ import annotations
 
@@ -16,13 +17,14 @@ import re
 from collections.abc import Mapping
 from typing import Iterator
 
-LANGS = ("zh", "en")
+DEFAULT_LANG = "en"
+LANGS = ("en", "zh")
 LANG_NAMES = {"zh": "中文", "en": "English"}
-_lang: contextvars.ContextVar[str] = contextvars.ContextVar("rea_video_lang", default="zh")
+_lang: contextvars.ContextVar[str] = contextvars.ContextVar("rea_video_lang", default=DEFAULT_LANG)
 
 
 def set_lang(lang: str | None) -> str:
-    lang = (lang or "zh").lower()
+    lang = (lang or DEFAULT_LANG).lower()
     if lang not in LANGS:
         raise ValueError(f"unsupported report language {lang!r} (choose from {', '.join(LANGS)})")
     _lang.set(lang)

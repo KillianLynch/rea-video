@@ -37,6 +37,10 @@ command link and does not edit shell startup files.
 
 ## Analyse a video
 
+The CLI help and status messages are in English. Reports default to English.
+Use `--lang zh` for a Chinese report, or `rea-video prefs lang zh` to save that
+report preference. An explicit `--lang` option takes priority.
+
 Run `rea-video survey input.mp4 -o out/input` and let the current agent answer its
 image tasks until the survey is complete. Then run:
 

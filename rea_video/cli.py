@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from .util import ASR_LANGS, LOG, OCR_LANGS, load_env_files, read_json, setup_logging, read_image
-from .i18n import LANGS, T, set_lang
+from .i18n import DEFAULT_LANG, LANGS, T, set_lang
 from .classify import LABELS
 from .vlm import vlm_note
 
@@ -42,7 +42,7 @@ def _ocr_lang(args) -> None:
     lang = getattr(args, "ocr_lang", None) or pref("ocr_lang")
     if lang:
         if lang not in OCR_LANGS:
-            raise SystemExit(f"错误：不支持的 OCR 语言 {lang}（可选：{', '.join(OCR_LANGS)}）")
+            raise SystemExit(f"Unsupported OCR language {lang} (choose from {', '.join(OCR_LANGS)})")
         os.environ["REA_OCR_LANG"] = lang
 
 
@@ -53,7 +53,7 @@ def _asr_lang(args) -> None:
     lang = getattr(args, "asr_lang", None) or pref("asr_lang")
     if lang:
         if lang not in ASR_LANGS:
-            raise SystemExit(f"错误：不支持的语音识别语言 {lang}（可选：{', '.join(ASR_LANGS)}）")
+            raise SystemExit(f"Unsupported speech language {lang} (choose from {', '.join(ASR_LANGS)})")
         os.environ["REA_ASR_LANG"] = lang
 
 
@@ -78,9 +78,9 @@ def cmd_decompose(args) -> int:
     if use_vlm:
         _check_vlm_config()
     stems = not args.no_stems and pref("stems", "on") == "on"
-    lang = args.lang or pref("lang", "zh")
+    lang = args.lang or pref("lang", DEFAULT_LANG)
     if lang not in LANGS:
-        raise SystemExit(f"错误：不支持的报告语言 {lang}（可选：{', '.join(LANGS)}）")
+        raise SystemExit(f"Unsupported report language {lang} (choose from {', '.join(LANGS)})")
     b = decompose(args.video, out, use_vlm=use_vlm, whole_vlm=not args.no_whole, ocr=not args.no_ocr,
                   workers=args.workers, engine=args.engine or pref("engine"), platform_meta=meta, stems=stems,
                   packaging=not args.no_packaging, lang=lang, asr=not args.no_asr, max_shots_vlm=max(1, args.max_vlm_shots),
@@ -121,7 +121,7 @@ def cmd_review(args) -> int:
 
     out = Path(args.out_dir)
     b = read_json(out / "breakdown.json")
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     tasks, answers = build_tasks(b, str(out))
     from .util import dumps_rows
 
@@ -130,10 +130,10 @@ def cmd_review(args) -> int:
     if args.force or not ans_path.is_file():
         ans_path.write_text(dumps_rows(answers), encoding="utf-8")
     high = [s for s in tasks["shots"] if s["priority"] == "high"]
-    print(f"{len(tasks['shots'])} 个镜头待看图复核，其中 {len(high)} 个优先：" + ", ".join(f"{s['id']}({'; '.join(s['why'])})" for s in high))
-    print(f"说明和图片路径：{out / 'review_tasks.json'}")
-    print(f"把答案填进：{ans_path}")
-    print(f"然后运行：rea-video apply-review {out} --by <你的名字>")
+    print(f"{len(tasks['shots'])} shots to review; {len(high)} high priority: " + ", ".join(f"{s['id']}({'; '.join(s['why'])})" for s in high))
+    print(f"Instructions and image paths: {out / 'review_tasks.json'}")
+    print(f"Write answers to: {ans_path}")
+    print(f"Then run: rea-video apply-review {out} --by <NAME>")
     return 0
 
 
@@ -145,26 +145,26 @@ def cmd_apply_review(args) -> int:
     b = read_json(out / "breakdown.json")
     if args.lang:
         b["lang"] = args.lang
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     answers = read_json(Path(args.answers) if args.answers else out / "review_answers.json")
     from .memory import pref
 
     log = apply_answers(b, answers, by=args.by or pref("reviewer"))
     b = finalize(b, out)
     for p in log["problems"]:
-        print(f"跳过 {p}")
+        print(f"Skipped {p}")
     if log.get("unanswered"):
-        print(f"没作答、已跳过 {len(log['unanswered'])} 个镜头")
+        print(f"Skipped {len(log['unanswered'])} unanswered shots")
     changed = [(r["id"], log["before"][r["id"]], r["base"]["label"]) for r in b["shots"]
                if r["id"] in log["before"] and log["before"][r["id"]] != r["base"]["label"]]
-    print(f"已并入 {len(log['applied'])}/{len(b['shots'])} 个镜头；改判 {len(changed)} 个" +
+    print(f"Applied {len(log['applied'])}/{len(b['shots'])} shots; changed {len(changed)} labels" +
           ("：" + ", ".join(f"{i} {a}→{c}" for i, a, c in changed) if changed else ""))
-    print(f"结论: {b['summary']['verdict']}")
+    print(f"Verdict: {b['summary']['verdict']}")
     print(f"VLM: {b['summary']['vlm']}")
     if log.get("packaging"):
-        print("已并入包装复核：" + ", ".join(f"{k} {n}" for k, n in log["packaging"].items()))
+        print('Applied packaging review: ' + ", ".join(f"{k} {n}" for k, n in log["packaging"].items()))
     if not log["applied"] and not log.get("packaging") and not log["problems"]:
-        print("答案文件里没有可并入的镜头（先按 review_tasks.md 填 review_answers.json）")
+        print('No answers to apply; fill in review_answers.json using review_tasks.json first')
     return 0 if log["applied"] or log.get("packaging") else 1
 
 
@@ -216,7 +216,7 @@ def cmd_videomd(args) -> int:
         print("\n".join(errs) if errs else T("符合 VIDEO.md 规范", "conforms to the VIDEO.md spec"))
         return 1 if errs else 0
     b = read_json(root / "breakdown.json")
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     print(write(b, root))
     return 0
 
@@ -266,7 +266,7 @@ def cmd_remake_plan(args) -> int:
 
 
 def _capsule_python(explicit: str | None, capsule_root: Path) -> str:
-    """capsule-cinema 的解释器：--python > $CAPSULE_CINEMA_PYTHON > <capsule-root>/.venv/bin/python > 当前解释器。"""
+    'capsule-cinema interpreter: --python > CAPSULE_CINEMA_PYTHON > checkout .venv > current Python.'
     if explicit or os.getenv("CAPSULE_CINEMA_PYTHON"):
         return explicit or os.environ["CAPSULE_CINEMA_PYTHON"]
     venv = capsule_root.expanduser() / ".venv/bin/python"
@@ -317,19 +317,19 @@ def cmd_tiles(args) -> int:
 
     # bad numbers used to die deep inside numpy / PIL with a traceback, or silently print an empty result
     if args.every <= 0:
-        raise SystemExit("rea-video: --every 必须大于 0（两次抽帧的间隔秒数）")
+        raise SystemExit('rea-video: --every must be greater than 0 (frame sampling interval in seconds)')
     if args.start < 0:
-        raise SystemExit("rea-video: --start 不能小于 0")
+        raise SystemExit('rea-video: --start must not be negative')
     if args.cols < 1:
-        raise SystemExit("rea-video: --cols 至少为 1")
+        raise SystemExit('rea-video: --cols must be at least 1')
     if args.max < 1:
-        raise SystemExit("rea-video: --max 至少为 1")
+        raise SystemExit('rea-video: --max must be at least 1')
     if args.cell < 1:
-        raise SystemExit("rea-video: --cell 至少为 1")
+        raise SystemExit('rea-video: --cell must be at least 1')
     info = video_info(args.video)
     end = args.end if args.end is not None else info.duration
     if args.start >= end:
-        raise SystemExit(f"rea-video: --end 必须大于 --start（视频时长 {info.duration:.2f} 秒）")
+        raise SystemExit(f"rea-video: --end must be greater than --start (video duration: {info.duration:.2f}s)")
     times = list(np.arange(args.start, end, args.every))[: args.max]
     import tempfile
 
@@ -354,13 +354,13 @@ def cmd_frames(args) -> int:
     from .layers import scene_frames
 
     if args.every <= 0:
-        raise SystemExit("rea-video: --every 必须大于 0")
+        raise SystemExit('rea-video: --every must be greater than 0')
     out = Path(args.out_dir)
     if not (out / "breakdown.json").is_file():
-        raise SystemExit(f"rea-video: {out} 下没有 breakdown.json，先运行 decompose")
+        raise SystemExit(f"rea-video: no breakdown.json in {out}; run decompose first")
     res = scene_frames(out, every=args.every, n_points=args.points, all_shots=args.all)
     if not res["scenes"]:
-        print(T("没有代码渲染镜头（加 --all 对所有镜头取帧）", "no code-rendered shots (add --all to cover every shot)"))
+        print(T('No code-rendered shots; add --all to extract frames from every shot', "no code-rendered shots (add --all to cover every shot)"))
         return 0
     print(json.dumps({"scenes": len(res["scenes"]), "file": str(out / "frames" / "scenes.json"),
                       "cuts": [s["start"] for s in res["scenes"]]}, ensure_ascii=False))
@@ -371,10 +371,10 @@ def cmd_compare(args) -> int:
     from .layers import compare
 
     if args.every <= 0:
-        raise SystemExit("rea-video: --every 必须大于 0")
+        raise SystemExit('rea-video: --every must be greater than 0')
     for p in (args.ref, args.remake):
         if not Path(p).is_file():
-            raise SystemExit(f"rea-video: 找不到 {p}")
+            raise SystemExit(f"rea-video: file not found: {p}")
     res = compare(args.ref, args.remake, every=args.every, out=Path(args.out) if args.out else None,
                   scenes=Path(args.scenes) if args.scenes else None, worst=args.worst)
     brief = {k: res[k] for k in ("score", "place", "shape", "offset", "advice", "worst") if k in res}
@@ -391,7 +391,7 @@ def cmd_remake(args) -> int:
 
     out = Path(args.out_dir)
     if not (out / "breakdown.json").is_file():
-        raise SystemExit(f"rea-video: {out} 下没有 breakdown.json，先运行 decompose")
+        raise SystemExit(f"rea-video: no breakdown.json in {out}; run decompose first")
     print(json.dumps(remake(out, code=args.code, overlays=not args.no_overlays), ensure_ascii=False, indent=1))
     return 0
 
@@ -401,7 +401,7 @@ def cmd_code_remake(args) -> int:
 
     out = Path(args.out_dir)
     if not (out / "breakdown.json").is_file():
-        raise SystemExit(f"rea-video: {out} 下没有 breakdown.json，先运行 decompose")
+        raise SystemExit(f"rea-video: no breakdown.json in {out}; run decompose first")
     try:
         res = code_remake(out, reset=args.reset, render=not args.no_render, score=not args.no_compare)
     except ValueError as e:
@@ -416,7 +416,7 @@ def cmd_drive(args) -> int:
 
     out = Path(args.out_dir)
     if not (out / "breakdown.json").is_file():
-        raise SystemExit(f"rea-video: {out} 下没有 breakdown.json，先运行 decompose")
+        raise SystemExit(f"rea-video: no breakdown.json in {out}; run decompose first")
     try:
         if args.join is not None:
             res = join(out, Path(args.join) if args.join else None)
@@ -442,7 +442,7 @@ def cmd_summary(args) -> int:
     from .i18n import T, join
 
     b = read_json(Path(args.breakdown))
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     s = b["summary"]
     lines = [f"{b['source']['filename']} | {b['source']['duration']}s {b['source']['width']}x{b['source']['height']} {b['source']['fps']}fps",
              f"{T('结论', 'Verdict')}: {s['verdict']}", f"{T('置信度', 'Confidence')}: {s['confidence']}", f"VLM: {s.get('vlm') or vlm_note(b['analysis']['vlm'])}", ""]
@@ -550,12 +550,12 @@ def cmd_correct(args) -> int:
     try:
         logged = correct(b, label=args.label, real=real, shots=args.shots, start=args.start, end=args.end, note=args.note or "")
     except ValueError as e:
-        print(f"错误：{e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         return 2
     b = finalize(b, out)
     changed = [f"{c['shot']} {c['before']}→{c['label']}" for c in logged if c.get("label") and c["before"] != c["label"]]
-    print(f"已纠正 {len(logged)} 个镜头" + (("：" + ", ".join(changed)) if changed else "") + "，并记入记忆")
-    print(f"结论: {b['summary']['verdict']}")
+    print(f"Corrected {len(logged)} shots" + ((": " + ", ".join(changed)) if changed else "") + "; saved to memory")
+    print(f"Verdict: {b['summary']['verdict']}")
     return 0
 
 
@@ -582,15 +582,15 @@ def cmd_plan(args) -> int:
     live = {k: m for k, m in pl.models.items() if m.get("status") not in ("shutdown", "deprecated")}
     m = next((x for x in live.values() if _norm(x["id"]) == _norm(intent["model"]) or _norm(x.get("name", "")) == _norm(intent["model"])), None)
     if not m:
-        print(f"rea-video: 能力地图里没有 {intent['model']}。先查这个模型的官方文档（单次时长、能不能吃参考视频 / 参考图和各几个、"
-              f"能不能一次出多镜头、首尾帧、原生音频、提示词写法），按 {CAP / 'models' / 'video.yaml'} 的格式写进 "
-              f"{user_capabilities() / 'models' / (re.sub(r'[^a-z0-9.-]+', '-', intent['model'].lower()) + '.yaml')}，再跑一次。"
-              "已有的模型：rea-video models", file=sys.stderr)
+        print(f"rea-video: unknown model {intent['model']}. Check its official documentation for limits, "
+              f"reference inputs, multi-shot support, key frames, audio, and prompting. Use {CAP / 'models' / 'video.yaml'} "
+              f"as a template for {user_capabilities() / 'models' / (re.sub(r'[^a-z0-9.-]+', '-', intent['model'].lower()) + '.yaml')}, "
+              "then try again. List recorded models with: rea-video models", file=sys.stderr)
         return 2
     intent["model"] = m["id"]
     save_intent(out, intent)
     b = read_json(out / "breakdown.json")
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     b = finalize(b, out, engine=m["id"])
     plan = b.get("production_plan") or {}
     n = sum(len(ref_clips(b, out, u)) for u in plan.get("units") or [])
@@ -599,7 +599,7 @@ def cmd_plan(args) -> int:
             m=m["id"], p=b["summary"].get("production", "")))
     if n:
         print(T("原片参考 {n} 个（已擦掉字幕）：{d}", "{n} source references (subtitles erased): {d}", n=n, d=out / "remake" / "refs"))
-    print(T("模型资料：{src}，核实于 {d}", "Model facts: {src}, checked {d}", src="本地补充" if m.get("local") else "能力地图", d=v.get("date") or "?"))
+    print(T("模型资料：{src}，核实于 {d}", "Model facts: {src}, checked {d}", src='local override' if m.get("local") else 'capability map', d=v.get("date") or "?"))
     from .generation import check_lines
 
     cs = plan.get("checks") or []
@@ -617,37 +617,37 @@ def cmd_models(args) -> int:
     pl = Planner()
     live = {k: m for k, m in pl.models.items() if m.get("status") not in ("shutdown", "deprecated")}
     if not args.model:
-        for cat, title in (("video", "视频"), ("image", "图像（出首帧 / 关键帧）"), ("character", "人物驱动")):
+        for cat, title in (("video", 'Video'), ("image", 'Image (first frames / key frames)'), ("character", 'Character animation')):
             print(f"{title}:")
             for mid, m in live.items():
                 if m["category"] == cat:
                     lim = (m.get("limits") or {}).get("duration_s") or {}
-                    extra = [f"≤{lim['max']:g}s" if lim.get("max") else "", "一次多镜头" if "video.multi_shot" in m["primitives"] else "",
-                             "有提示词写法" if mid in pl.prompting else ""]
+                    extra = [f"≤{lim['max']:g}s" if lim.get("max") else "", 'multi-shot' if "video.multi_shot" in m["primitives"] else "",
+                             'prompt guide available' if mid in pl.prompting else ""]
                     print(f"  {mid:22s} {m['name']}" + ("  · " + " · ".join(x for x in extra if x) if any(extra) else ""))
-        print("\n看某个模型的提示词写法：rea-video models <id>；关键帧通用做法：rea-video models keyframes")
+        print('\nModel prompt guide: rea-video models <id>; general key-frame guidance: rea-video models keyframes')
         return 0
     if args.model == "keyframes":
-        print("关键帧通用做法：\n" + "\n".join(f"- {x}" for x in pl.keyframe_notes))
+        print('General key-frame guidance:\n' + "\n".join(f"- {x}" for x in pl.keyframe_notes))
         return 0
     m = next((x for x in live.values() if _norm(x["id"]) == _norm(args.model)), None)
     if not m:
-        print(f"rea-video: 能力地图里没有 {args.model}；rea-video models 列出全部", file=sys.stderr)
+        print(f"rea-video: unknown model {args.model}; list models with rea-video models", file=sys.stderr)
         return 2
     lim = m.get("limits") or {}
     d = lim.get("duration_s") or {}
-    facts = [f"单次 {d.get('min', 0):g}–{d['max']:g}s" if d.get("max") else "", "可一次多镜头" if "video.multi_shot" in m["primitives"] else "",
-             "首帧" if "video.i2v_first_frame" in m["primitives"] else "", "首尾帧" if "video.i2v_first_last" in m["primitives"] else "",
-             "多参考" if "video.multi_reference" in m["primitives"] else "", "参考视频" if "video.reference_video" in m["primitives"] else "",
-             "原生音频" if (m.get("audio") or {}).get("native") else ""]
+    facts = [f"per generation {d.get('min', 0):g}-{d['max']:g}s" if d.get("max") else "", "multi-shot" if "video.multi_shot" in m["primitives"] else "",
+             'first frame' if "video.i2v_first_frame" in m["primitives"] else "", 'first and last frames' if "video.i2v_first_last" in m["primitives"] else "",
+             'multiple references' if "video.multi_reference" in m["primitives"] else "", 'reference video' if "video.reference_video" in m["primitives"] else "",
+             'native audio' if (m.get("audio") or {}).get("native") else ""]
     print(f"{m['id']} · {m['name']}" + (" · " + " · ".join(x for x in facts if x) if any(facts) else ""))
     notes = pl.prompting.get(m["id"])
     if not notes:
-        print("这个模型还没有记录提示词写法，按通用规则写。")
+        print('No model-specific prompt guide recorded; use the general guidance.')
         return 0
     print("\n".join(prompting_md(notes, full=True)))
     if m["category"] == "video":
-        print("\n关键帧通用做法：rea-video models keyframes")
+        print('\nGeneral key-frame guidance: rea-video models keyframes')
     return 0
 
 
@@ -657,7 +657,7 @@ def cmd_prefs(args) -> int:
     if args.key and args.value is None and "=" in args.key:  # also accept `prefs key=value`
         args.key, args.value = args.key.split("=", 1)
     if args.key and args.key not in PREF_KEYS:
-        print(f"错误：未知偏好 {args.key}（可选：{', '.join(PREF_KEYS)}；用法 rea-video prefs <key> <value>）", file=sys.stderr)
+        print(f"Unknown preference {args.key} (choose from {', '.join(PREF_KEYS)}; usage: rea-video prefs <key> <value>)", file=sys.stderr)
         return 2
     try:
         if args.note:
@@ -672,13 +672,13 @@ def cmd_prefs(args) -> int:
             print(load_prefs().get(args.key, ""))
             return 0
     except ValueError as e:
-        print(f"错误：{e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         return 2
     prefs = load_prefs()
     for k, desc in PREF_KEYS.items():
-        print(f"{k:<9} = {prefs.get(k, '（未设置）')}    # {desc}")
+        print(f"{k:<9} = {prefs.get(k, '(not set)')}    # {desc}")
     for i, n in enumerate(prefs.get("notes", []), 1):
-        print(f"说明 {i}: {n}")
+        print(f"Note {i}: {n}")
     return 0
 
 
@@ -687,97 +687,97 @@ def cmd_memory(args) -> int:
 
     if args.export_labels:
         n = export_labels(Path(args.export_labels))
-        print(f"已导出 {n} 条视频的纠正到 {args.export_labels}（先把 path 填好，再用 rea-video eval 评测）")
+        print(f"Exported {n} video corrections to {args.export_labels}; fill in the paths before running rea-video eval")
         return 0
     print("\n".join(summary_lines()))
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="rea-video", description="逆向拆解视频：逐镜头判断实拍 / AI 生成 / 代码渲染 / 混合，并生成复刻方案")
+    ap = argparse.ArgumentParser(prog="rea-video", description='Reverse-engineer videos shot by shot and create remake plans')
     ap.add_argument("-v", "--verbose", action="store_true")
     ap.add_argument("--env-file", help="Extra .env for optional generation integrations; external VLM is disabled")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    d = sub.add_parser("decompose", help="拆解一条视频")
+    d = sub.add_parser("decompose", help='Analyse a video')
     d.add_argument("video")
     d.add_argument("-o", "--out")
     d.add_argument("--vlm", action="store_true", help="disabled in this fork; use agent review")
-    d.add_argument("--no-vlm", action="store_true", help="本次不开 VLM（覆盖 prefs 里的 vlm=on）")
-    d.add_argument("--no-whole", action="store_true", help="跳过整片结构/文案 VLM 分析")
-    d.add_argument("--no-ocr", action="store_true", help="不做 OCR（字幕/花字时间轴也会跳过，只剩贴纸检测）")
-    d.add_argument("--ocr-lang", choices=OCR_LANGS, help="字幕/花字的语言：zh 中英（默认）、ja 日文、ko 韩文（后两种首次使用自动下载识别模型）；也可用 prefs ocr_lang 设成默认")
-    d.add_argument("--no-packaging", action="store_true", help="跳过剪辑包装层（整片字幕时间轴、花字、贴纸/动图、音效卡点）；省掉约每分钟 30–50 秒")
-    d.add_argument("--lang", choices=LANGS, help="报告、结论和 VLM 描述的语言：zh（默认）/ en；按用户提问的语言选，也可用 prefs lang 设成默认")
+    d.add_argument("--no-vlm", action="store_true", help='Keep external VLM calls disabled (already enforced in this fork)')
+    d.add_argument("--no-whole", action="store_true", help='Skip whole-video VLM analysis (disabled in this fork)')
+    d.add_argument("--no-ocr", action="store_true", help='Skip OCR and text timelines; retain sticker detection')
+    d.add_argument("--ocr-lang", choices=OCR_LANGS, help='OCR language: zh reads Chinese and English (default), ja Japanese, ko Korean; ja/ko download recognition models on first use')
+    d.add_argument("--no-packaging", action="store_true", help='Skip subtitle, title, sticker, and sound-effect packaging analysis')
+    d.add_argument("--lang", choices=LANGS, help='Report language: en (default) or zh; overrides the saved language preference')
     d.add_argument("--workers", type=int, default=3)
-    d.add_argument("--max-vlm-shots", type=int, default=60, help="最多发给 VLM 的调用数（默认 60；镜头更多时优先看最拿不准的，其余只靠确定性取证）")
-    d.add_argument("--engine", help="复刻方案按哪个视频模型规划（rea-video models 列出的 id；默认 prefs 里的 engine，否则 seedance2.0）")
-    d.add_argument("--meta", help='平台元数据 JSON，例如 {"music": {"title": "xx", "author": "yy", "is_original": false, "popular": true}}')
-    d.add_argument("--no-asr", action="store_true", help="不做本地语音识别（装了 rea-video[asr] 才会做：在人声干声上识别台词和时间，首次使用下载约 160 MB 模型）")
-    d.add_argument("--asr-lang", choices=ASR_LANGS, help="台词的语言：auto（默认，SenseVoice 自动识别中/英/日/韩/粤）、bn 孟加拉语（换用孟加拉语识别模型，首次使用自动下载约 90 MB）；也可用 prefs asr_lang 设成默认")
-    d.add_argument("--no-speakers", action="store_true", help="不区分说话人（装了 rea-video[asr] 才会做：在人声干声上分出谁在什么时候说话，多人时每人输出一条 stems/voice_S1.wav；首次使用下载约 35 MB 模型）")
-    d.add_argument("--no-survey", action="store_true", help="开 VLM 时也不做总览 + 局部细看（只用切镜检测器的切点）")
-    d.add_argument("--no-stems", action="store_true", help="不做人声/配乐分离（默认会输出 stems/original.wav、vocals.wav、music.wav）")
+    d.add_argument("--max-vlm-shots", type=int, default=60, help='Legacy VLM call limit (unused in this fork)')
+    d.add_argument("--engine", help='Video model ID for remake planning; defaults to the saved engine or seedance2.0')
+    d.add_argument("--meta", help='Platform metadata JSON, including music title, author, and originality')
+    d.add_argument("--no-asr", action="store_true", help='Skip local speech recognition; optional [asr] support downloads about 160 MB on first use')
+    d.add_argument("--asr-lang", choices=ASR_LANGS, help='Speech language: auto (Chinese, English, Japanese, Korean, Cantonese) or bn (Bengali; downloads about 90 MB)')
+    d.add_argument("--no-speakers", action="store_true", help='Skip speaker separation; optional [asr] support downloads about 35 MB on first use')
+    d.add_argument("--no-survey", action="store_true", help='Skip the overview survey and use detected shot boundaries')
+    d.add_argument("--no-stems", action="store_true", help='Skip voice, music, and sound-effect stem separation')
     d.set_defaults(func=cmd_decompose)
 
-    st = sub.add_parser("stems", help="只把声音剥离成 原声 / 人声 / 配乐 三条轨")
+    st = sub.add_parser("stems", help='Separate the soundtrack into voice, music, and effects')
     st.add_argument("video")
     st.add_argument("-o", "--out")
     st.set_defaults(func=cmd_stems)
 
-    p = sub.add_parser("probe", help="只看容器元数据/来源线索")
+    p = sub.add_parser("probe", help='Inspect container metadata and provenance hints')
     p.add_argument("video")
     p.add_argument("--tags", action="store_true")
     p.set_defaults(func=cmd_probe)
 
-    e = sub.add_parser("eval", help="在带标注的样本集上评测拆解准确率")
+    e = sub.add_parser("eval", help='Evaluate analysis accuracy against labelled samples')
     e.add_argument("labels", help="labels.yaml")
     e.add_argument("-o", "--out", default="out/eval")
     e.add_argument("--vlm", action="store_true")
     e.add_argument("--no-ocr", action="store_true")
-    e.add_argument("--ocr-lang", choices=OCR_LANGS, help="同 decompose --ocr-lang")
-    e.add_argument("--fresh", action="store_true", help="不复用已有拆解结果")
-    e.add_argument("--only", default="", help="只重新拆解这些 id（逗号分隔），其余复用缓存并重新分类")
-    e.add_argument("--stems", action="store_true", help="对带音频真值的样本做人声分离，并在干声上重测唱/说")
+    e.add_argument("--ocr-lang", choices=OCR_LANGS, help='OCR language; see decompose --ocr-lang')
+    e.add_argument("--fresh", action="store_true", help='Recompute analyses instead of reusing cached results')
+    e.add_argument("--only", default="", help='Reanalyse these comma-separated sample IDs; reuse other cached results')
+    e.add_argument("--stems", action="store_true", help='Separate audio stems for samples with audio labels')
     e.set_defaults(func=cmd_eval)
 
-    c = sub.add_parser("capsule", help="导出 capsule-cinema 的视频分析 JSON（供生成胶囊草稿）")
+    c = sub.add_parser("capsule", help='Export analysis JSON for capsule-cinema')
     c.add_argument("breakdown")
     c.add_argument("-o", "--out")
     c.set_defaults(func=cmd_capsule)
 
-    r = sub.add_parser("remake-plan", help="把复刻方案的生成单元写成 capsule-cinema 任务（模型和要换的东西在 rea-video plan 里定）")
+    r = sub.add_parser("remake-plan", help='Create capsule-cinema generation jobs from a remake plan')
     r.add_argument("breakdown")
-    r.add_argument("--capsule-root", help="capsule-cinema 仓库；默认 $CAPSULE_CINEMA_ROOT、prefs capsule_root，再退到 ~/code/github/capsule-cinema")
+    r.add_argument("--capsule-root", help='capsule-cinema checkout; defaults to CAPSULE_CINEMA_ROOT, saved capsule_root, or ~/code/github/capsule-cinema')
     r.set_defaults(func=cmd_remake_plan)
 
-    rr = sub.add_parser("remake-run", help="用 capsule-cinema 执行 remake-plan 生成的任务（会计费，先 --dry-run）")
-    rr.add_argument("jobs", help="remake-plan 输出的 jobs.json")
-    rr.add_argument("--capsule-root", help="须与 remake-plan 时一致；默认同 remake-plan")
-    rr.add_argument("--dry-run", action="store_true", help="只列出任务和参数，不调用模型")
-    rr.add_argument("--only", default="", help="只跑这些镜头（逗号分隔）")
-    rr.add_argument("--python", help="capsule-cinema 的 Python；默认 $CAPSULE_CINEMA_PYTHON 或 <capsule-root>/.venv/bin/python")
+    rr = sub.add_parser("remake-run", help='Run capsule-cinema generation jobs (billable; inspect --dry-run first)')
+    rr.add_argument("jobs", help='jobs.json produced by remake-plan')
+    rr.add_argument("--capsule-root", help='The same capsule-cinema checkout used by remake-plan')
+    rr.add_argument("--dry-run", action="store_true", help='List jobs and parameters without calling a model')
+    rr.add_argument("--only", default="", help='Run only these comma-separated shot or unit IDs')
+    rr.add_argument("--python", help='capsule-cinema Python; defaults to CAPSULE_CINEMA_PYTHON or <capsule-root>/.venv/bin/python')
     rr.set_defaults(func=cmd_remake_run)
 
-    cd = sub.add_parser("capsule-draft", help="用拆解结果生成 capsule-cinema 胶囊草稿")
+    cd = sub.add_parser("capsule-draft", help='Create a capsule-cinema draft from an analysis')
     cd.add_argument("breakdown")
-    cd.add_argument("--capsule-root", help="capsule-cinema 仓库；默认 $CAPSULE_CINEMA_ROOT、prefs capsule_root，再退到 ~/code/github/capsule-cinema")
+    cd.add_argument("--capsule-root", help='capsule-cinema checkout; defaults to CAPSULE_CINEMA_ROOT, saved capsule_root, or ~/code/github/capsule-cinema')
     cd.add_argument("--capsule-name", default="")
     cd.add_argument("--capsule-display-name", default="")
-    cd.add_argument("--write-capsule", action="store_true", help="落盘到 capsule-cinema 的 capsules/")
+    cd.add_argument("--write-capsule", action="store_true", help='Write the draft into capsule-cinema capsules/')
     cd.add_argument("--overwrite-capsule", action="store_true")
-    cd.add_argument("--python", help="capsule-cinema 的 Python；默认同 remake-run")
+    cd.add_argument("--python", help='capsule-cinema Python; same default as remake-run')
     cd.set_defaults(func=cmd_capsule_draft)
 
-    a = sub.add_parser("assemble", help="把复刻结果按原时间线拼回，并输出对比视频")
+    a = sub.add_parser("assemble", help='Assemble remade shots on the original timeline and create a comparison video')
     a.add_argument("breakdown")
-    a.add_argument("results", help="remake-run 输出的 results.json（或自己写的同格式文件）")
+    a.add_argument("results", help='results.json from remake-run, or a file using the same format')
     a.add_argument("-o", "--out")
     a.add_argument("--overlays", action="store_true",
-                   help="把测得的字幕 / 花字 / 标题按原样式叠回换掉的镜头（保留原片的镜头本来就有）；贴纸只列出来，要自己找素材")
+                   help='Reapply measured subtitles and titles to replaced shots; supply sticker assets separately')
     a.set_defaults(func=cmd_assemble)
 
-    t = sub.add_parser("tiles", help="按时间抽帧拼图，近距离检查某一段（agent 复核用）")
+    t = sub.add_parser("tiles", help='Extract a contact sheet for close visual review')
     t.add_argument("video")
     t.add_argument("--start", type=float, default=0.0)
     t.add_argument("--end", type=float)
@@ -788,108 +788,108 @@ def main(argv: list[str] | None = None) -> int:
     t.add_argument("-o", "--out", default="out/tiles.jpg")
     t.set_defaults(func=cmd_tiles)
 
-    fr = sub.add_parser("frames", help="代码渲染镜头按场景切分，取原尺寸帧、画上去的那一层（抠图 + 采样点）和底色 / 背景光 / 前景颜色（decompose 会自动跑）")
-    fr.add_argument("out_dir", help="decompose 的输出目录")
-    fr.add_argument("--every", type=float, default=0.25, help="采样间隔秒数（默认 0.25）")
-    fr.add_argument("--points", type=int, default=4000, help="每个场景取多少个采样点（默认 4000）")
-    fr.add_argument("--all", action="store_true", help="所有镜头都做，不只是代码渲染镜头")
+    fr = sub.add_parser("frames", help='Extract scene frames, element crops, sample points, and background colours')
+    fr.add_argument("out_dir", help='Analysis output directory')
+    fr.add_argument("--every", type=float, default=0.25, help='Frame sampling interval in seconds (default: 0.25)')
+    fr.add_argument("--points", type=int, default=4000, help='Sample points per scene (default: 4000)')
+    fr.add_argument("--all", action="store_true", help='Process every shot, including shots not classified as code-rendered')
     fr.set_defaults(func=cmd_frames)
 
-    cp = sub.add_parser("compare", help="逐帧比较复刻和原片画上去的那一层（落在哪、形状重合度、多少），列出最差的时刻并拼对比图")
-    cp.add_argument("ref", help="原片")
-    cp.add_argument("remake", help="复刻成片")
-    cp.add_argument("--every", type=float, default=0.5, help="采样间隔秒数（默认 0.5）")
-    cp.add_argument("--scenes", help="frames/scenes.json：按场景汇总分数")
-    cp.add_argument("--worst", type=int, default=8, help="对比图里放几个最差时刻（默认 8）")
-    cp.add_argument("-o", "--out", help="输出目录：compare.json 和 compare_worst.jpg")
+    cp = sub.add_parser("compare", help='Compare reference and remake frames; report the weakest matches')
+    cp.add_argument("ref", help='Reference video')
+    cp.add_argument("remake", help='Remade video')
+    cp.add_argument("--every", type=float, default=0.5, help='Frame sampling interval in seconds (default: 0.5)')
+    cp.add_argument("--scenes", help='frames/scenes.json for per-scene scores')
+    cp.add_argument("--worst", type=int, default=8, help='Number of weakest matches to show (default: 8)')
+    cp.add_argument("-o", "--out", help='Directory for compare.json and compare_worst.jpg')
     cp.set_defaults(func=cmd_compare)
 
-    rm = sub.add_parser("remake", help="一条命令出复刻：静图按运动重建（代码渲染镜头默认原片占位，加 --code 出快速草稿）、已生成 / 你给的镜头剪进去，其余原片占位；输出成片、对比视频和逐镜进度（remake/status.md）")
-    rm.add_argument("out_dir", help="decompose 的输出目录")
-    rm.add_argument("--code", action="store_true", help="用 code-remake 给代码渲染镜头出快速草稿（粒子 / 数据可视化类画面接近原片；插画动画建议交给 HyperFrames 等 HTML 视频框架）")
-    rm.add_argument("--no-overlays", action="store_true", help="换掉的镜头上不叠回字幕 / 花字")
+    rm = sub.add_parser("remake", help='Build a local remake from still images and supplied shots; retain placeholders for unfinished shots')
+    rm.add_argument("out_dir", help='Analysis output directory')
+    rm.add_argument("--code", action="store_true", help='Create a code-remake draft for code-rendered shots')
+    rm.add_argument("--no-overlays", action="store_true", help='Skip subtitle and title overlays on replaced shots')
     rm.set_defaults(func=cmd_remake)
 
-    cr = sub.add_parser("code-remake", help="代码渲染镜头的第一版复刻：按场景的采样点 / 抠图、运动和背景光写出可改的工程（code/spec.json + render.py），对齐原片后渲染并打分")
-    cr.add_argument("out_dir", help="decompose 的输出目录")
-    cr.add_argument("--reset", action="store_true", help="重新生成 spec.json（默认保留改过的）")
-    cr.add_argument("--no-render", action="store_true", help="只写工程，不渲染")
-    cr.add_argument("--no-compare", action="store_true", help="渲染后不打分")
+    cr = sub.add_parser("code-remake", help='Create an editable code-rendered draft, render it, and compare against the source')
+    cr.add_argument("out_dir", help='Analysis output directory')
+    cr.add_argument("--reset", action="store_true", help='Recreate spec.json instead of preserving edits')
+    cr.add_argument("--no-render", action="store_true", help='Write the project without rendering')
+    cr.add_argument("--no-compare", action="store_true", help='Skip scoring after rendering')
     cr.set_defaults(func=cmd_code_remake)
 
-    dv = sub.add_parser("drive", help="舞蹈 / 动作镜头的驱动视频：擦掉字幕贴纸、在动作停顿处切段（drive/seg_XX.mp4），喂动作迁移或参考视频模型；--join 把生成好的段拼回原时间线")
-    dv.add_argument("out_dir", help="decompose 的输出目录")
-    dv.add_argument("--shots", help="只做这些镜头，如 3-7,9（默认用复刻方案里的动作驱动单元）")
-    dv.add_argument("--depth", action="store_true", help="同时出深度视频（需要 transformers + torch；没有时 README 里给 Video Depth Anything 命令）")
-    dv.add_argument("--no-clean", action="store_true", help="不擦字幕和贴纸")
-    dv.add_argument("--prefer", type=float, help="每段的理想长度（秒），默认 10")
-    dv.add_argument("--max", type=float, help="每段最长（秒），默认 15；Kling 最长 30")
-    dv.add_argument("--join", nargs="?", const="", default=None, metavar="RESULTS", help="把生成好的段（默认 drive/results.json）拼回去，写进 remake/mine.json")
+    dv = sub.add_parser("drive", help='Prepare caption-free motion-reference clips, or join generated clips with --join')
+    dv.add_argument("out_dir", help='Analysis output directory')
+    dv.add_argument("--shots", help='Shot ranges such as 3-7,9; defaults to motion-drive units from the remake plan')
+    dv.add_argument("--depth", action="store_true", help='Also create depth video; requires transformers and torch')
+    dv.add_argument("--no-clean", action="store_true", help='Keep subtitles and stickers in reference clips')
+    dv.add_argument("--prefer", type=float, help='Preferred clip duration in seconds (default: 10)')
+    dv.add_argument("--max", type=float, help='Maximum clip duration in seconds (default: 15; Kling limit: 30)')
+    dv.add_argument("--join", nargs="?", const="", default=None, metavar="RESULTS", help='Join generated clips from RESULTS or drive/results.json into remake/mine.json')
     dv.set_defaults(func=cmd_drive)
 
-    sm = sub.add_parser("summary", help="紧凑打印拆解结果（低置信镜头会被标出来）")
+    sm = sub.add_parser("summary", help='Print a compact analysis summary and flag low-confidence shots')
     sm.add_argument("breakdown")
     sm.set_defaults(func=cmd_summary)
 
-    rl = sub.add_parser("videomd", help="从 breakdown.json 重新生成给模型读的拆片包（VIDEO.md + video/）；decompose 和 apply-review 会自动生成")
+    rl = sub.add_parser("videomd", help='Regenerate VIDEO.md and video/ from breakdown.json')
     rl.add_argument("out_dir")
-    rl.add_argument("--check", action="store_true", help="只校验目录是否符合 VIDEO.md 规范（https://github.com/videomd/videomd），不重写")
+    rl.add_argument("--check", action="store_true", help='Validate the VIDEO.md package without rewriting it')
     rl.set_defaults(func=cmd_videomd)
 
-    pd = sub.add_parser("pdf", help="把 report.html 打印成 report.pdf（用本机的 Chrome / Chromium / Edge，折叠内容全部展开）")
+    pd = sub.add_parser("pdf", help='Print report.html as PDF using an installed Chrome, Chromium, or Edge')
     pd.add_argument("out_dir")
     pd.set_defaults(func=cmd_pdf)
 
-    sv = sub.add_parser("survey", help="先看全片总览再局部细看：定切点、转场和每镜关键帧（JEV 格式问答）；decompose 会按结果切镜")
+    sv = sub.add_parser("survey", help='Prepare agent image tasks for shot boundaries, transitions, and key frames')
     sv.add_argument("video")
     sv.add_argument("-o", "--out")
     sv.add_argument("--vlm", action="store_true", help="disabled in this fork; use agent review")
-    sv.add_argument("--no-vlm", action="store_true", help="本次不用 VLM（覆盖 prefs 里的 vlm=on）：输出任务，由能看图的 agent 回答")
-    sv.add_argument("--no-detail", action="store_true", help="只定切点，不逐镜挑关键帧")
-    sv.add_argument("--workers", type=int, default=4, help="VLM 并发数")
+    sv.add_argument("--no-vlm", action="store_true", help='Use the current agent to answer image tasks (external VLM is disabled)')
+    sv.add_argument("--no-detail", action="store_true", help='Find shot boundaries without selecting per-shot key frames')
+    sv.add_argument("--workers", type=int, default=4, help='Number of analysis workers')
     sv.set_defaults(func=cmd_survey)
 
-    rv = sub.add_parser("review", help="能看图的 agent 当 VLM：生成逐镜看图任务和答案模板")
-    rv.add_argument("out_dir", help="decompose 的输出目录")
-    rv.add_argument("--force", action="store_true", help="覆盖已有的 review_answers.json")
+    rv = sub.add_parser("review", help='Create image-review tasks and answer templates for the current agent')
+    rv.add_argument("out_dir", help='Analysis output directory')
+    rv.add_argument("--force", action="store_true", help='Replace an existing review_answers.json template')
     rv.set_defaults(func=cmd_review)
 
-    ar = sub.add_parser("apply-review", help="把 agent 看图的答案并入结论，重写 breakdown.json 和报告")
+    ar = sub.add_parser("apply-review", help='Merge agent review answers and regenerate reports')
     ar.add_argument("out_dir")
-    ar.add_argument("answers", nargs="?", help="答案文件（默认 <out_dir>/review_answers.json）")
-    ar.add_argument("--by", help="复核者名字（写进报告）")
-    ar.add_argument("--lang", choices=LANGS, help="在这一步换报告语言：结论、证据和报告文字重新生成，VLM 已写好的描述和提示词保持原语言")
+    ar.add_argument("answers", nargs="?", help='Answer file (default: <out_dir>/review_answers.json)')
+    ar.add_argument("--by", help='Reviewer name recorded in the report')
+    ar.add_argument("--lang", choices=LANGS, help='Regenerate reports in this language; existing free-text descriptions retain their language')
     ar.set_defaults(func=cmd_apply_review)
 
-    co = sub.add_parser("correct", help="用户指出判错：改正这条视频的结论，并记入记忆（以后同类镜头会提示复核）")
-    co.add_argument("out_dir", help="decompose 的输出目录")
-    co.add_argument("--shots", help="镜头编号，逗号分隔（如 3,5 或 shot_003），all 表示整条；也可用 --start/--end 指定时间段")
+    co = sub.add_parser("correct", help='Correct shot labels or material origins and save the correction')
+    co.add_argument("out_dir", help='Analysis output directory')
+    co.add_argument("--shots", help='Comma-separated shot IDs, such as 3,5 or shot_003; all selects every shot')
     co.add_argument("--start", type=float)
     co.add_argument("--end", type=float)
-    co.add_argument("--label", help="正确的底层类别：" + "、".join(LABELS))
-    co.add_argument("--real", choices=["yes", "no"], help="是否用了用户真实素材")
-    co.add_argument("--note", help="用户的原话或理由，例如「这是定格动画，不是 AI」")
+    co.add_argument("--label", help='Correct production-method label: ' + "、".join(LABELS))
+    co.add_argument("--real", choices=["yes", "no"], help='Whether the shot uses real source material')
+    co.add_argument("--note", help='Reason for the correction')
     co.set_defaults(func=cmd_correct)
 
-    pl_ = sub.add_parser("plan", help="按用户要用的视频模型出复刻方案（报告第二部分）；拆解结果不变")
-    pl_.add_argument("out_dir", help="拆解目录")
-    pl_.add_argument("--model", help="模型 id 或名称，写进 remake/intent.yaml（rea-video models 列出的；没有的先查资料补进 ~/.rea-video/capabilities/models/）")
-    pl_.add_argument("--generate", choices=["ai", "all"], help="ai：只生成原片里 AI 做的镜头，实拍的出拍摄方案；all：整条都用模型生成（换人、换物后整条复刻）")
+    pl_ = sub.add_parser("plan", help='Regenerate the remake plan for the selected model')
+    pl_.add_argument("out_dir", help='Analysis output directory')
+    pl_.add_argument("--model", help='Model ID or name recorded in remake/intent.yaml; see rea-video models')
+    pl_.add_argument("--generate", choices=["ai", "all"], help='ai: generate AI shots only; all: generate every shot')
     pl_.set_defaults(func=cmd_plan)
 
-    mo = sub.add_parser("models", help="列出能力地图里的生成模型；带模型 id 时打印这个模型的提示词写法和关键帧要求")
-    mo.add_argument("model", nargs="?", help="模型 id（如 seedance-2.5、kling-3.0）；keyframes 打印关键帧通用做法")
+    mo = sub.add_parser("models", help='List available generation models or show a model prompt guide')
+    mo.add_argument("model", nargs="?", help='Model ID such as seedance-2.5 or kling-3.0; keyframes shows general guidance')
     mo.set_defaults(func=cmd_models)
 
-    pf = sub.add_parser("prefs", help="查看 / 设置用户偏好（默认引擎、是否开 VLM、VLM 配置文件、复核者、自由文字说明）")
+    pf = sub.add_parser("prefs", help='View or edit saved preferences and agent notes')
     pf.add_argument("key", nargs="?")
     pf.add_argument("value", nargs="?")
     pf.add_argument("--unset", action="store_true")
-    pf.add_argument("--note", help="追加一条给 agent 看的偏好说明，例如「报告尽量短」")
+    pf.add_argument("--note", help='Add a preference note for the agent')
     pf.add_argument("--remove-note", type=int, metavar="N")
     pf.set_defaults(func=cmd_prefs)
 
-    me = sub.add_parser("memory", help="看记住了什么：偏好、常见纠正类型；可导出为评测样本")
+    me = sub.add_parser("memory", help='Show saved preferences and corrections, or export evaluation labels')
     me.add_argument("--export-labels", metavar="YAML")
     me.set_defaults(func=cmd_memory)
 

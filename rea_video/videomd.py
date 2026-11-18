@@ -21,7 +21,7 @@ import yaml
 
 from . import entities, narrative, performance
 from .classify import LABEL_ZH
-from .i18n import T, join
+from .i18n import DEFAULT_LANG, T, join
 
 FORMAT = "videomd"
 VERSION = 1
@@ -285,7 +285,7 @@ def _card(b: dict) -> dict:
     source.update({"duration": src["duration"], "size": f"{src['width']}x{src['height']}", "fps": src["fps"], "aspect": src["aspect_ratio"]})
     return {
         FORMAT: VERSION, "name": slug(Path(src["filename"]).stem), "description": _description(b),
-        "source": source, "shots": len(b["shots"]), "lang": b.get("lang", "zh"),
+        "source": source, "shots": len(b["shots"]), "lang": b.get("lang", DEFAULT_LANG),
         "made_mix": {m["label"]: m["ratio"] for m in s["production_mix"]}, "confidence": s["confidence"],
         "readers": readers, "open_questions": len(entities.open_questions(b)),
         "generator": {"name": "rea-video", "version": __version__},

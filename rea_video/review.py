@@ -12,6 +12,7 @@ from .classify import LABEL_ZH, LABELS, top
 from . import aspects, narrative, performance
 from .narrative import ROLE_GUIDE
 from .vlm import SHOT_PROMPT, shot_hints
+from .i18n import T
 
 PERF_TEMPLATE = {"who": "", "emotion": "", "intensity": "", "face": "", "body": "", "arc": [], "voice": "", "key": False, "move": "", "movers": 0, "full_body": None, "backdrop": "", "en": ""}
 SHOOT_LIKE = ("live_action", "avatar", "stop_motion", "film_footage")  # shots where "how was it shot / lit" applies
@@ -108,16 +109,18 @@ def _priority(rec: dict, ctx: dict) -> tuple[str, list[str]]:
     label, conf = probs[0] if probs else ("", 1.0)
     why = []
     if conf < 0.65:
-        why.append(f"置信度低（{conf:.0%}）")
+        why.append(T("置信度低（{conf:.0%}）", "low confidence ({conf:.0%})", conf=conf))
     if len(probs) > 1 and probs[0][1] - probs[1][1] < 0.25:
-        why.append(f"次选 {LABEL_ZH.get(probs[1][0], probs[1][0])} 接近（{probs[1][1]:.0%}）")
+        why.append(T("次选 {label} 接近（{conf:.0%}）", "close runner-up: {label} ({conf:.0%})",
+                     label=LABEL_ZH.get(probs[1][0], probs[1][0]), conf=probs[1][1]))
     if (rec.get("base") or {}).get("disputed"):
         why.append(rec["base"]["disputed"])
     facts = (rec.get("deterministic") or {}).get("facts", {})
     if label == "ai_video" and facts.get("pulldown") in ("24→30", "24→60", "25→30?"):
-        why.append("只有 24fps 源的帧率证据：AI 和 24p 相机实拍都会这样，看画面定")
+        why.append(T("只有 24fps 源的帧率证据：AI 和 24p 相机实拍都会这样，看画面定",
+                     "24fps cadence alone cannot distinguish AI from camera footage; inspect the images"))
     if facts.get("transcode_degraded") and label in ("ai_video", "live_action"):
-        why.append("平台转码，实拍/AI 待确认")
+        why.append(T("平台转码，实拍/AI 待确认", "platform transcode; live action versus AI needs review"))
     return ("high" if why else "normal"), why
 
 

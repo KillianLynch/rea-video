@@ -24,7 +24,7 @@ from .util import LOG, fmt_time, round_floats, write_json, read_image
 from . import aspects
 from .faces import shot_faces
 from .visual import LABEL_SHORT, shot_sheet, storyboard
-from .i18n import T, join, semi, set_lang
+from .i18n import DEFAULT_LANG, T, join, semi, set_lang
 from .vlm import SHOT_PROMPT, SILENT_NOTE, SOUND_NOTE, TAKE_NOTE, WHOLE_PROMPT, VLMClient, VLMConfig, normalize_shot_result, normalize_whole, prompt_lang_note, shot_hints, take_results, vlm_note
 
 
@@ -126,7 +126,7 @@ def decode_fingerprint() -> str:
 def decompose(video: str | Path, out_dir: str | Path, *, use_vlm: bool = False, whole_vlm: bool = True,
               ocr: bool = True, workers: int = 3, engine: str | None = None, max_shots_vlm: int = 60,
               platform_meta: dict | None = None, stems: bool = True, memory: bool = True, packaging: bool = True, asr: bool = True,
-              lang: str = "zh", speakers: bool = True, survey: bool = True) -> dict:
+              lang: str = DEFAULT_LANG, speakers: bool = True, survey: bool = True) -> dict:
     if use_vlm:
         from .vlm import EXTERNAL_VLM_DISABLED
 
@@ -216,7 +216,7 @@ def decompose(video: str | Path, out_dir: str | Path, *, use_vlm: bool = False, 
     if packaging:
         from .packaging import analyze as analyze_packaging, anchored_sfx, visual_events
 
-        LOG.info("packaging layer: subtitle timeline, 花字, stickers%s", "" if ocr else " (no OCR: stickers only)")
+        LOG.info("packaging layer: subtitle timeline, styled text, stickers%s", "" if ocr else " (no OCR: stickers only)")
         pack = analyze_packaging(video, info, [s.start for s in shots[1:]], out, ocr=ocr,
                                  speech=bool((audio.get("voice") or {}).get("present")) if audio.get("has_audio") else False)
         if info.has_audio:
@@ -738,7 +738,7 @@ def finalize(breakdown: dict, out: Path, engine: str | None = None) -> dict:
 
     dance.mark(breakdown)  # speech / singing share and product context per shot, for the motion-drive guard
     out = Path(out)
-    set_lang(breakdown.get("lang", "zh"))
+    set_lang(breakdown.get("lang", DEFAULT_LANG))
     # remember the engine: apply-review / correct / eval call finalize without one and must not reset it.
     # A model the user named (decompose --engine, prefs engine) goes into the remake intent unless it already names one;
     # until a model is named, the report's remake part asks for one instead of planning for a model nobody picked

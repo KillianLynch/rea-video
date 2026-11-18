@@ -1,6 +1,7 @@
 ---
 name: rea-video
-description: 逆向拆解一条视频是怎么做出来的——逐镜头判断实拍 / 影视片段 / AI 生成 / 3D 渲染 / 2D 动画 / 定格动画 / 代码模板渲染 / 录屏截图 / 静态图推拉 / 静帧，以及实拍是否经过 AI 加工（换脸、对口型、风格化），标出后期叠加层（逐句字幕时间轴、花字、标题、贴纸 / GIF / 表情包、画中画）和用户真实素材，拆解人声、背景音乐、音效（卡在哪个画面事件上）与剪辑节奏，并给出可执行的复刻方案（可用 capsule-cinema 等复刻）。当用户给出参考视频、问"这条视频怎么做的 / 是不是 AI / 用了什么素材 / 怎么复刻 / 想二创或做一条同款"时使用。
+description: >-
+  Analyse how a reference video was made, shot by shot: filmed, AI-generated, animated, code-rendered, or mixed. Identify captions, overlays, audio, real source materials, and remake steps. Use when a user asks how a video was made, whether it is AI, or how to recreate it.
 ---
 
 # rea-video：视频制作方式逆向拆解
@@ -15,6 +16,8 @@ description: 逆向拆解一条视频是怎么做出来的——逐镜头判断�
 6. **怎么复刻？**每镜给出路线和工具；实拍镜头给拍摄方案（布光 + 器材清单），不是只写"用 AI 近似"，AI 类镜头可以交给 capsule-cinema 生成，见 `references/remake-tools.md`。
 
 核心原则：**每个结论都要有证据，确定不了就如实写"待确认"并说明还缺什么。**宁可写"实拍还是 AI 待确认（倾向 AI 70%）"，也不要编一个确定的答案。
+
+English is the default for CLI help, status messages, reports, and agent review answers. Use `--lang zh` when the user explicitly requests a Chinese report.
 
 ## 0. 环境
 
@@ -89,7 +92,7 @@ rea-video summary out/ref/breakdown.json      # 用并入后的结果写回复
 
 用户明确要复刻时，按需求查阅 `references/remake-tools.md`，优先使用本地工具和当前 agent；额外工具仅在用户选择后安装。
 
-**报告和回复都用用户的语言。**语言的判断顺序：用户明确指定的语言（「用英文出报告」「report in Chinese」）> 用户提问所用的语言 > `rea-video memory` 里的 `lang` 偏好 > 中文。
+**报告和回复都用用户的语言。**语言的判断顺序：用户明确指定的语言（「用英文出报告」「report in Chinese」）> 用户提问所用的语言 > `rea-video memory` 里的 `lang` 偏好 > 英文。
 - 工具支持 `--lang zh` 和 `--lang en`：`decompose` 时就传对，报告文件（`report.html` / `report.md`）、`summary` 输出、VLM 的画面描述和提示词都会是该语言；忘了传可以在 `apply-review out/ref --lang en` 时补上（会重新生成结论和报告文字；VLM 已写好的描述和提示词保持原语言）。看图复核时，`review_answers.json` 里的 evidence / description / prompt 也用这个语言写。
 - 用户用日语、韩语等工具不支持的语言提问时，跑 `--lang en`，回复用用户的语言写；用户要该语言的报告文件时，把 `report.md` 翻译成 `report_<语言>.md` 放在同一目录，并说明 `report.html` 是英文的。
 - 用户设了长期偏好（「以后都出英文报告」）就 `rea-video prefs lang en` 记下来。

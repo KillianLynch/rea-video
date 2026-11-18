@@ -21,15 +21,15 @@ from .i18n import T, semi
 from .util import ASR_LANGS, OCR_LANGS
 
 PREF_KEYS = {
-    "engine": "复刻计划默认的视频引擎（decompose / remake-plan 的 --engine）",
+    "engine": 'Default video model for remake planning (decompose / remake-plan --engine)',
     "vlm": "Legacy preference (ignored): external VLM is disabled in this fork",
     "env_file": "Optional integration env file (external VLM is disabled)",
-    "stems": "decompose 是否默认做人声/配乐分离：on / off",
-    "reviewer": "apply-review 默认的复核者名字",
-    "ocr_lang": "字幕/花字 OCR 的语言：zh（中英，默认）/ ja（日文，首次使用自动下载约 10 MB 识别模型）/ ko（韩文，首次使用自动下载约 14 MB 识别模型）",
-    "asr_lang": "本地语音识别的语言：auto（SenseVoice 自动识别中/英/日/韩/粤，默认）/ bn（孟加拉语，首次使用自动下载约 90 MB 识别模型）",
-    "capsule_root": "capsule-cinema 仓库位置（remake-plan / remake-run / capsule-draft 的 --capsule-root；也可设 $CAPSULE_CINEMA_ROOT）",
-    "lang": "报告和结论的语言：zh（默认）/ en；agent 应按用户提问的语言选，用户明确指定时以指定为准",
+    "stems": 'Separate audio stems by default: on / off',
+    "reviewer": 'Default reviewer name for apply-review',
+    "ocr_lang": 'OCR language: zh (Chinese and English, default), ja (Japanese), ko (Korean)',
+    "asr_lang": 'Local speech language: auto (Chinese, English, Japanese, Korean, Cantonese) or bn (Bengali)',
+    "capsule_root": 'capsule-cinema checkout for generation integrations; also CAPSULE_CINEMA_ROOT',
+    "lang": 'Report language: en (default) or zh; explicit --lang overrides this preference',
 }
 ON_OFF = ("on", "off")
 HINT_MIN = 2  # a correction pattern becomes a hint once it has been seen this many times, in this many different videos
@@ -56,13 +56,13 @@ def _save_prefs(prefs: dict) -> None:
 
 def set_pref(key: str, value: str | None) -> dict:
     if key not in PREF_KEYS:
-        raise ValueError(f"未知偏好 {key}（可选：{', '.join(PREF_KEYS)}；自由文字偏好用 prefs --note）")
+        raise ValueError(f"Unknown preference {key} (choose from {', '.join(PREF_KEYS)}; use prefs --note for free-text notes)")
     if value is not None and key in ("vlm", "stems") and value not in ON_OFF:
-        raise ValueError(f"{key} 只能是 on / off")
+        raise ValueError(f"{key} must be on or off")
     if value is not None and key == "ocr_lang" and value not in OCR_LANGS:
-        raise ValueError(f"ocr_lang 只能是 {' / '.join(OCR_LANGS)}")
+        raise ValueError(f"ocr_lang must be one of {' / '.join(OCR_LANGS)}")
     if value is not None and key == "asr_lang" and value not in ASR_LANGS:
-        raise ValueError(f"asr_lang 只能是 {' / '.join(ASR_LANGS)}")
+        raise ValueError(f"asr_lang must be one of {' / '.join(ASR_LANGS)}")
     if value is not None and key in ("env_file", "capsule_root"):
         value = str(Path(value).expanduser().resolve())
     prefs = load_prefs()
@@ -87,7 +87,7 @@ def remove_note(index: int) -> dict:
     prefs = load_prefs()
     notes = prefs.get("notes", [])
     if not 1 <= index <= len(notes):
-        raise ValueError(f"没有第 {index} 条偏好说明（共 {len(notes)} 条）")
+        raise ValueError(f"No note {index}; there are {len(notes)} notes")
     notes.pop(index - 1)
     _save_prefs(prefs)
     return prefs
@@ -141,12 +141,12 @@ def correct(breakdown: dict, *, label: str | None = None, real: bool | None = No
             start: float | None = None, end: float | None = None, note: str = "", record: bool = True) -> list[dict]:
     """Mark shots with the user's answer (rec["user"]) and log each correction. Call finalize() afterwards."""
     if label is not None and label not in LABELS:
-        raise ValueError(f"未知类别 {label}（可选：{', '.join(LABELS)}）")
+        raise ValueError(f"Unknown label {label} (choose from {', '.join(LABELS)})")
     if label is None and real is None:
-        raise ValueError("至少给出 --label 或 --real")
+        raise ValueError('Provide at least one of --label or --real')
     recs = _select(breakdown, shots, start, end)
     if not recs:
-        raise ValueError("没有选中任何镜头（检查 --shots / --start / --end）")
+        raise ValueError('No shots selected; check --shots / --start / --end')
     ctx = breakdown.get("video_context") or {}
     logged = []
     for r in recs:
@@ -278,7 +278,7 @@ def export_labels(path: Path) -> int:
     videos = []
     for key, v in by_video.items():
         shots = sorted(v["shots"].values(), key=lambda s: s["start"])
-        entry = {"id": f"user_{Path(v['video']).stem}"[:60], "path": f"<填入 {v['video']} 的路径>", "source": "user_corrections",
+        entry = {"id": f"user_{Path(v['video']).stem}"[:60], "path": f"<path to {v['video']}>", "source": "user_corrections",
                  "video_key": key}
         segs = [[round(s["start"], 3), round(s["end"], 3), s["label"]] for s in shots if "label" in s]
         reals = [[round(s["start"], 3), round(s["end"], 3), s["real"]] for s in shots if "real" in s]
@@ -288,6 +288,6 @@ def export_labels(path: Path) -> int:
             entry["real_material"] = reals
         videos.append(entry)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# 由 rea-video memory --export-labels 从用户纠正生成；只评纠正过的时间段。path 需要手动填。\n"
+    path.write_text('# Exported from rea-video user corrections; only corrected time ranges are evaluated. Fill in video paths.\n'
                     + yaml.safe_dump({"videos": videos}, allow_unicode=True, sort_keys=False), encoding="utf-8")
     return len(videos)

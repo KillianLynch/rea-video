@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import aspects, entities, narrative, performance, playbook
 from .classify import LABEL_ZH
-from .i18n import LangDict, T, join, lang, semi, shot_ids
+from .i18n import DEFAULT_LANG, LangDict, T, join, lang, semi, shot_ids
 from .packaging import layer_name, anchor_text
 from .production import report_md as production_md
 from .plan import shot_prompts
@@ -1292,7 +1292,7 @@ def html_report(b: dict) -> str:
 def write_reports(b: dict, out: Path) -> None:
     from .i18n import set_lang
 
-    set_lang(b.get("lang", "zh"))
+    set_lang(b.get("lang", DEFAULT_LANG))
     (out / "report.md").write_text(markdown(b), encoding="utf-8")
     (out / "report.html").write_text(html_report(b), encoding="utf-8")
     from .videomd import write as write_videomd
