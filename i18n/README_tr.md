@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Solda telefonla çekilmiş bir TikTok reklamı var. Sağda başka bir ürünle y
 rea-video yapay zekâ ajanları için yapıldı. Claude Code, Codex ya da komut çalıştırabilen herhangi bir ajana şunu söyle:
 
 ```text
-Install https://github.com/JuneYaooo/rea-video, then break down this video: /path/to/video.mp4
+Install https://github.com/KillianLynch/rea-video, then break down this video: /path/to/video.mp4
 ```
 
 Ajan CLI'ı kurar, iş akışını öğrenir ve her şeyi baştan sona çalıştırır. ffmpeg ve Python 3.10+ gerekir.
@@ -143,24 +145,6 @@ Aynı değişiklik: özgün yeni bir ürün, İngilizce çıkartma → Çince al
 </table>
 
 HD karşılaştırma videoları orijinal sesi kullanır. Orijinaller ve OiiOii versiyonları makalelerden alınmıştır ve yalnızca karşılaştırma amacıyla gösterilmektedir.
-
-Yeniden yapımı barındırılan bir yapay zekâ video editörü olan [ChatCut](https://chatcut.io/r/github-e4rd) ile de yapabilirsin: kurulacak model yok ve üretilen çekimler düzenlemeye devam edebileceğin bir zaman çizelgesine yerleşir. <sub>Sponsor</sub>
-
-## Sponsorlar
-
-rea-video ücretsiz ve açık kaynaktır. Sponsorlar bakımının sürmesine yardım ediyor.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b>, Claude Code ve Codex için çekimleri üreten, onları bir zaman çizelgesinde kurgulayan ve bitmiş videoyu dışa aktaran bir yapay zekâ video editörüdür.<br>
-<a href="https://chatcut.io/r/github-e4rd">ChatCut'ı ücretsiz dene</a></td>
-</tr></table>
-
-<sub>Sponsorlu · <a href="https://reavideo.ai/en/contact/">Sponsor ol</a></sub>
-
 ## Doğruluk
 
 "Nasıl yapıldı" kararının çekim süresine göre ağırlıklandırılmış doğruluğu:

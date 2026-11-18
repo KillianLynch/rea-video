@@ -1,12 +1,16 @@
 # capsule-cinema 对接
 
-`remake-run` 和 `capsule-draft` 会用 **capsule-cinema 自己的 Python 环境**运行包里的 `rea_video/integrations/run_remake.py`、`to_capsule.py`（它们会 import capsule-cinema 的 `lib/` 和 `scripts/`，并读取它的 `.env`）。解释器按 `--python` > `$CAPSULE_CINEMA_PYTHON` > `<capsule-root>/.venv/bin/python` 的顺序找。rea-video 本身只依赖 numpy/opencv/pillow/pyyaml。
+`remake-run` 和 `capsule-draft` 会用 **capsule-cinema 自己的 Python 环境**运行包里的 `rea_video/integrations/run_remake.py`、`to_capsule.py`（它们会 import capsule-cinema 的 `lib/` 和 `scripts/`，并读取它的 `.env`）。解释器按 `--python` > `$CAPSULE_CINEMA_PYTHON` > `<capsule-root>/.venv/bin/python` 的顺序找。rea-video 的完整依赖见 `pyproject.toml`。本分支的分析使用当前 agent 看图，独立外部 VLM 已禁用。
 
 ```bash
 CC=~/code/github/capsule-cinema          # capsule-cinema 仓库
 
-# 1) 拆解（建议开 VLM，复用 capsule-cinema 的 Gemini 配置）
-rea-video --env-file $CC/.env decompose ref.mp4 -o out/ref --vlm
+# 1) 拆解并由当前 agent 看图复核
+rea-video survey ref.mp4 -o out/ref  # agent 答完输出的任务后重跑，直到 done
+rea-video decompose ref.mp4 -o out/ref
+rea-video review out/ref
+# agent 看图填写 review_answers.json 后：
+rea-video apply-review out/ref --by Codex
 
 # 2a) 生成胶囊草稿（不改 capsule-cinema 代码；通过 tool_factory 注入 rea-video 的拆解结果）
 rea-video capsule-draft out/ref/breakdown.json \

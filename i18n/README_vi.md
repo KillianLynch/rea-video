@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Bên trái là quảng cáo TikTok quay bằng điện thoại. Bên phải là 
 rea-video được thiết kế cho AI agent. Trong Claude Code, Codex hoặc bất kỳ agent nào chạy được lệnh terminal, bạn chỉ cần nhắn:
 
 ```text
-Cài https://github.com/JuneYaooo/rea-video rồi phân tích video này giúp tôi: /path/to/video.mp4
+Cài https://github.com/KillianLynch/rea-video rồi phân tích video này giúp tôi: /path/to/video.mp4
 ```
 
 Agent sẽ tự cài CLI, đọc quy trình làm việc và chạy trọn bộ từ đầu đến cuối. Bạn chỉ cần cài sẵn ffmpeg và Python 3.10+.
@@ -143,24 +145,6 @@ Thay tương đương: một sản phẩm mới hoàn toàn, nhãn dán tiếng 
 </table>
 
 Các video đối chiếu HD sử dụng âm thanh gốc. Bản gốc và các bản của OiiOii được trích từ bài viết để tiện đối chiếu.
-
-Bạn cũng có thể remake bằng [ChatCut](https://chatcut.io/r/github-e4rd), công cụ dựng video AI chạy sẵn trên đám mây: không cần tự cấu hình mô hình, các cảnh quay tạo ra được đưa thẳng lên timeline để bạn dựng tiếp. <sub>Nhà tài trợ</sub>
-
-## Nhà tài trợ
-
-rea-video miễn phí và mã nguồn mở. Nhà tài trợ giúp dự án được duy trì.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> là công cụ dựng video AI dùng trong Claude Code và Codex: tạo các cảnh quay, sắp lên timeline và xuất video hoàn chỉnh.<br>
-<a href="https://chatcut.io/r/github-e4rd">Dùng thử ChatCut miễn phí</a></td>
-</tr></table>
-
-<sub>Được tài trợ · <a href="https://reavideo.ai/en/contact/">Trở thành nhà tài trợ</a></sub>
-
 ## Độ chính xác
 
 Độ chính xác khi kết luận cách dựng video, tính trọng số theo thời lượng từng shot:

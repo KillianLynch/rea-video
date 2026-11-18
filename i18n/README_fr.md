@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Chaque analyse est écrite au format **[VIDEO.md](https://videomd.github.io/vide
 rea-video est pensé pour être piloté par un agent IA. Dans Claude Code, Codex ou n'importe quel agent capable de lancer des commandes, demandez :
 
 ```text
-Installe https://github.com/JuneYaooo/rea-video, puis décortique cette vidéo : /path/to/video.mp4
+Installe https://github.com/KillianLynch/rea-video, puis décortique cette vidéo : /path/to/video.mp4
 ```
 
 L'agent installe la CLI, apprend le workflow et s'occupe du reste. Prérequis : ffmpeg et Python 3.10+.
@@ -143,24 +145,6 @@ Même remplacement : un nouveau produit inventé, sticker en anglais → sous-ti
 </table>
 
 Les comparatifs HD utilisent le son d'origine. Les originaux et les versions d'OiiOii viennent des articles et ne sont montrés qu'à titre de comparaison.
-
-Le remake peut aussi se faire dans [ChatCut](https://chatcut.io/r/github-e4rd), un éditeur vidéo IA hébergé : aucun modèle à configurer, et les plans générés arrivent sur une timeline que vous pouvez continuer à monter. <sub>Sponsor</sub>
-
-## Sponsors
-
-rea-video est gratuit et open source. Les sponsors aident à le maintenir.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> est un éditeur vidéo IA pour Claude Code et Codex qui génère les plans, les monte sur une timeline et exporte la vidéo finale.<br>
-<a href="https://chatcut.io/r/github-e4rd">Essayer ChatCut gratuitement</a></td>
-</tr></table>
-
-<sub>Sponsorisé · <a href="https://reavideo.ai/en/contact/">Devenir sponsor</a></sub>
-
 ## Précision
 
 Précision sur le mode de fabrication de chaque plan, pondérée par la durée des plans :

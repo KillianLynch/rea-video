@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
-# 把 rea-video skill 链接到常见 agent 的 skills 目录，并安装 CLI。可重复运行。
+# Install the CLI in this checkout; register one agent only when selected.
 # PYTHON_BIN=python3.12 bash scripts/install_skill.sh   # 指定解释器
 set -euo pipefail
+export ORT_DISABLE_TELEMETRY=1
+agent=""
+if [ "$#" -gt 0 ]; then
+  if [ "$#" -ne 2 ] || [ "$1" != "--agent" ]; then
+    echo "Usage: bash scripts/install_skill.sh [--agent codex|claude|agents]" >&2
+    exit 2
+  fi
+  agent="$2"
+  case "$agent" in codex|claude|agents) ;; *) echo "Unknown agent: $agent" >&2; exit 2 ;; esac
+fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ---- ffmpeg ----
@@ -35,7 +45,7 @@ if [ -z "$PY" ] || ! py_ok "$PY"; then
   echo "  macOS: brew install python@3.12；Ubuntu: sudo apt install python3.12 python3.12-venv；然后 PYTHON_BIN=python3.12 bash $0" >&2
   exit 1
 fi
-echo "使用 $PY（$("$PY" --version 2>&1)）"
+echo "Using $PY ($("$PY" --version 2>&1))"
 install_failed() {
   echo "✗ 安装失败，见上面的输出。" >&2
   if ! py_known "$PY"; then
@@ -57,44 +67,26 @@ dedupe_cv() {  # 参数：能跑 pip 的命令，如 python -m pip / pipx runpip
   fi
 }
 
-# ---- 安装 CLI：pip -> (系统 Python 不让装时) pipx -> 仓库内 .venv ----
-log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
-if "$PY" -m pip install -e "$ROOT[ocr]" 2>&1 | tee "$log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then
-  dedupe_cv "$PY" -m pip
-elif grep -qi "externally-managed" "$log"; then
-  echo "系统 Python 不允许直接 pip 安装（PEP 668），改用隔离环境。" >&2
-  if command -v pipx >/dev/null 2>&1; then
-    pipx install --force --python "$PY" -e "$ROOT[ocr]" || install_failed
-    dedupe_cv pipx runpip rea-video
-  else
-    "$PY" -m venv "$ROOT/.venv" || install_failed
-    "$ROOT/.venv/bin/python" -m pip install -e "$ROOT[ocr]" || install_failed
-    dedupe_cv "$ROOT/.venv/bin/python" -m pip
-    mkdir -p "$HOME/.local/bin"
-    ln -sfn "$ROOT/.venv/bin/rea-video" "$HOME/.local/bin/rea-video"
-    echo "已装到 $ROOT/.venv，命令链接到 ~/.local/bin/rea-video"
-    case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) echo "⚠ ~/.local/bin 不在 PATH 里，把它加进 shell 配置。" >&2 ;; esac
-  fi
-else
-  install_failed
-fi
+# Install only into this checkout's isolated environment. No global command links.
+"$PY" -m venv "$ROOT/.venv" || install_failed
+VENV_PY="$ROOT/.venv/bin/python"
+"$VENV_PY" -m pip install -e "$ROOT[ocr]" || install_failed
+dedupe_cv "$VENV_PY" -m pip
 
-# ---- 链接 skill：只链到已经装了的 agent（都没装就链到 ~/.claude/skills） ----
-targets=()
-for home in "$HOME/.claude" "$HOME/.codex" "$HOME/.agents"; do
-  [ -d "$home" ] && targets+=("$home/skills")
-done
-[ ${#targets[@]} -eq 0 ] && targets=("$HOME/.claude/skills")
-for dir in "${targets[@]}"; do
-  mkdir -p "$dir"
+# Agent registration is opt-in and limited to one explicitly selected agent.
+if [ -n "$agent" ]; then
+  dir="$HOME/.$agent/skills"
   dest="$dir/rea-video"
-  if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-    # ln -sfn 遇到真实目录会把链接建到它里面，还报成功
-    echo "⚠ $dest 是一个真实目录（旧的手动拷贝？），跳过。删掉或改名后重跑。" >&2
-    continue
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$ROOT/skills/rea-video" ]; then
+      echo "Skill already linked: $dest"
+    else
+      echo "Keeping existing skill at $dest; no link created." >&2
+    fi
+  else
+    mkdir -p "$dir"
+    ln -s "$ROOT/skills/rea-video" "$dest"
+    echo "Linked $dest"
   fi
-  ln -sfn "$ROOT/skills/rea-video" "$dest"
-  echo "linked $dest"
-done
-echo "done. 试试：rea-video --help"
+fi
+printf 'CLI installed in %s/.venv. Activate with: source "%s/.venv/bin/activate"\n' "$ROOT" "$ROOT"

@@ -58,13 +58,10 @@ def _asr_lang(args) -> None:
 
 
 def _check_vlm_config() -> None:
-    """Fail fast on a misconfigured VLM: a typo in REA_VLM_MEDIA must not silently run text-only."""
-    from .vlm import VLMConfig
+    """Reject external model calls before any video processing starts."""
+    from .vlm import EXTERNAL_VLM_DISABLED
 
-    try:
-        VLMConfig.from_env()
-    except ValueError as exc:
-        raise SystemExit(f"rea-video: {exc}")
+    raise SystemExit(f"rea-video: {EXTERNAL_VLM_DISABLED}")
 
 
 def cmd_decompose(args) -> int:
@@ -77,7 +74,7 @@ def cmd_decompose(args) -> int:
     from .memory import pref
 
     meta = read_json(Path(args.meta)) if args.meta else None
-    use_vlm = args.vlm or (pref("vlm") == "on" and not args.no_vlm)
+    use_vlm = args.vlm
     if use_vlm:
         _check_vlm_config()
     stems = not args.no_stems and pref("stems", "on") == "on"
@@ -98,20 +95,14 @@ def cmd_survey(args) -> int:
     from .media import video_info
     from .memory import pref
     from .shots import build_track, detect_shots
-    from .survey import run, vlm_asker
+    from .survey import run
 
     out = Path(args.out) if args.out else Path("out") / Path(args.video).stem
     info = video_info(args.video)
     track = build_track(str(args.video), info)
     asker = None
-    if args.vlm or (pref("vlm") == "on" and not args.no_vlm):
+    if args.vlm:
         _check_vlm_config()
-        from .vlm import VLMClient, VLMConfig, prompt_lang_note
-
-        cfg = VLMConfig.from_env()
-        if cfg is None:
-            raise SystemExit("rea-video: --vlm 需要 VLM 配置（REA_VLM_BASE_URL / REA_VLM_API_KEY / REA_VLM_MODEL）")
-        asker = vlm_asker(VLMClient(cfg, out / "vlm_cache"), prompt_lang_note())
     res = run(Path(args.video).expanduser().resolve(), out.expanduser().resolve(), track, detect_shots(track), info,
               asker=asker, workers=args.workers, detail=not args.no_detail)
     if res["status"] == "waiting":
@@ -705,13 +696,13 @@ def cmd_memory(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="rea-video", description="逆向拆解视频：逐镜头判断实拍 / AI 生成 / 代码渲染 / 混合，并生成复刻方案")
     ap.add_argument("-v", "--verbose", action="store_true")
-    ap.add_argument("--env-file", help="额外的 .env（例如 capsule-cinema/.env，用于 VLM 配置）")
+    ap.add_argument("--env-file", help="Extra .env for optional generation integrations; external VLM is disabled")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     d = sub.add_parser("decompose", help="拆解一条视频")
     d.add_argument("video")
     d.add_argument("-o", "--out")
-    d.add_argument("--vlm", action="store_true", help="启用多模态大模型（VLM）看画面逐镜判断；建议开，不开也能跑，只是实拍/AI/3D 的区分更弱")
+    d.add_argument("--vlm", action="store_true", help="disabled in this fork; use agent review")
     d.add_argument("--no-vlm", action="store_true", help="本次不开 VLM（覆盖 prefs 里的 vlm=on）")
     d.add_argument("--no-whole", action="store_true", help="跳过整片结构/文案 VLM 分析")
     d.add_argument("--no-ocr", action="store_true", help="不做 OCR（字幕/花字时间轴也会跳过，只剩贴纸检测）")
@@ -852,7 +843,7 @@ def main(argv: list[str] | None = None) -> int:
     sv = sub.add_parser("survey", help="先看全片总览再局部细看：定切点、转场和每镜关键帧（JEV 格式问答）；decompose 会按结果切镜")
     sv.add_argument("video")
     sv.add_argument("-o", "--out")
-    sv.add_argument("--vlm", action="store_true", help="用配置的 VLM 自动回答每一轮（同一轮的任务并发）")
+    sv.add_argument("--vlm", action="store_true", help="disabled in this fork; use agent review")
     sv.add_argument("--no-vlm", action="store_true", help="本次不用 VLM（覆盖 prefs 里的 vlm=on）：输出任务，由能看图的 agent 回答")
     sv.add_argument("--no-detail", action="store_true", help="只定切点，不逐镜挑关键帧")
     sv.add_argument("--workers", type=int, default=4, help="VLM 并发数")
@@ -906,6 +897,10 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--env-file", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
 
     args = ap.parse_args(argv)
+    if getattr(args, "vlm", False):
+        from .vlm import EXTERNAL_VLM_DISABLED
+
+        ap.error(EXTERNAL_VLM_DISABLED)
     setup_logging(args.verbose)
     _env(args)
     from .media import MediaError

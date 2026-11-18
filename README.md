@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Left: a TikTok ad shot on a phone. Right: an AI remake with another product. rea
 rea-video is built for AI agents. In Claude Code, Codex or any agent that can run commands, say:
 
 ```text
-Install https://github.com/JuneYaooo/rea-video, then break down this video: /path/to/video.mp4
+Install https://github.com/KillianLynch/rea-video, then break down this video: /path/to/video.mp4
 ```
 
 The agent installs the CLI, learns the workflow and runs the whole thing. You need ffmpeg and Python 3.10+.
@@ -47,7 +49,7 @@ Breakdowns are fully upgraded. Each one gives you two outputs:
 - **Report** (`report.html` / PDF), for you: more reader-friendly, with a clearer structure, easier to learn from and to understand how the video was made and how to remake it.
 - **[VIDEO.md](https://videomd.github.io/videomd/)**, for your AI: layered, so the AI reads only what a question needs and uses fewer tokens.
 
-You can also hook up a video-capable model (Gemini or Doubao both work) by giving the agent its endpoint and key. That makes the live/AI/3D calls more accurate and adds a reverse-engineered prompt for every shot. It works fine without one; if your agent can see images, it checks the uncertain shots itself.
+In this fork, your current image-capable agent reviews the extracted frames. No separate model API key is required; direct external VLM calls are disabled.
 
 > Reports are written in whichever language you ask in (Chinese or English). The example reports below are in English.
 
@@ -143,24 +145,6 @@ Same swap: an original new product, English sticker → Chinese caption. Element
 </table>
 
 The HD comparison videos use the original audio. The originals and OiiOii versions come from the articles and are shown for comparison only.
-
-You can also do the remake in [ChatCut](https://chatcut.io/r/github-e4rd), a hosted AI video editor: there is no model to set up, and the generated shots land on a timeline you can keep editing. <sub>Sponsor</sub>
-
-## Sponsors
-
-rea-video is free and open source. Sponsors help keep it maintained.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/chatcut-logo-light.svg">
-  <img src="docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> is an AI video editor for Claude Code and Codex that generates the shots, cuts them on a timeline and exports the finished video.<br>
-<a href="https://chatcut.io/r/github-e4rd">Try ChatCut for free</a></td>
-</tr></table>
-
-<sub>Sponsored · <a href="https://reavideo.ai/en/contact/">Become a sponsor</a></sub>
-
 ## Accuracy
 
 Accuracy of the how-it-was-made call, weighted by shot duration:

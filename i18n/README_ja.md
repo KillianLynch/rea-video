@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@
 rea-video は AI エージェントから使う前提で作っています。Claude Code や Codex など、コマンドを実行できるエージェントにこう頼むだけです。
 
 ```text
-https://github.com/JuneYaooo/rea-video をインストールして、この動画を分解して：/path/to/video.mp4
+https://github.com/KillianLynch/rea-video をインストールして、この動画を分解して：/path/to/video.mp4
 ```
 
 CLI のインストールから使い方の把握、実行まで、エージェントが全部やってくれます。必要なのは ffmpeg と Python 3.10 以上です。
@@ -143,24 +145,6 @@ rea-video で分解したあとは、[capsule-cinema](https://github.com/JuneYao
 </table>
 
 HD 比較動画の音声は元動画のものです。元動画と OiiOii 版は記事から引用しており、比較のためだけに載せています。
-
-[ChatCut](https://chatcut.io/r/github-e4rd) でリメイクすることもできます。モデルを自分で用意する必要はなく、生成したショットはそのままタイムラインに入り、続けて編集できます。<sub>スポンサー</sub>
-
-## スポンサー
-
-rea-video は無料のオープンソースです。スポンサーの支援でメンテナンスを続けています。
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> は Claude Code と Codex で使える AI 動画編集ツールです。ショットを生成してタイムラインに並べ、完成した動画を書き出します。<br>
-<a href="https://chatcut.io/r/github-e4rd">ChatCut を無料で試す</a></td>
-</tr></table>
-
-<sub>スポンサー · <a href="https://reavideo.ai/en/contact/">スポンサーになる</a></sub>
-
 ## 精度
 
 制作方法の判定精度（ショットの長さで重み付け）：

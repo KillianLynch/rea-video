@@ -127,6 +127,10 @@ def decompose(video: str | Path, out_dir: str | Path, *, use_vlm: bool = False, 
               ocr: bool = True, workers: int = 3, engine: str | None = None, max_shots_vlm: int = 60,
               platform_meta: dict | None = None, stems: bool = True, memory: bool = True, packaging: bool = True, asr: bool = True,
               lang: str = "zh", speakers: bool = True, survey: bool = True) -> dict:
+    if use_vlm:
+        from .vlm import EXTERNAL_VLM_DISABLED
+
+        raise ValueError(EXTERNAL_VLM_DISABLED)
     lang = set_lang(lang)
     require_tools()
     t0 = time.time()

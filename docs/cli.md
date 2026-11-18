@@ -1,3 +1,5 @@
+> This fork rejects `--vlm` and ignores saved VLM preferences. Use the agent-review workflow.
+
 # 命令行参考
 
 平时不需要手敲这些命令：把仓库和视频交给 agent，它会按 [SKILL.md](../skills/rea-video/SKILL.md) 调用。这里留给想自己跑、或者想看 agent 在做什么的人。
@@ -6,26 +8,13 @@
 
 需要 Python ≥ 3.10 和 ffmpeg（macOS：`brew install ffmpeg`；Ubuntu：`apt install ffmpeg`）。
 
+本分支的安装与隐私设置见 [fork setup and privacy](privacy.md)。
+
 ```bash
-git clone <本仓库> && cd rea-video
-pip install -e ".[ocr]"          # numpy / opencv / pillow / pyyaml / onnxruntime + 可选 OCR
+bash scripts/install_skill.sh --agent codex
+source .venv/bin/activate
 rea-video --help
-bash scripts/install_skill.sh    # 可选：装 CLI 并把 skill 链接到 ~/.claude/skills、~/.codex/skills、~/.agents/skills
 ```
-
-手动装了 `[ocr]` 时，OCR 依赖会再装一套 `opencv-python`，和 rea-video 用的 `opencv-python-headless` 抢同一个 `cv2` 目录。装完跑一次：
-`pip uninstall -y opencv-python && pip install --force-reinstall --no-deps "opencv-python-headless>=4.8,<5"`（`install_skill.sh` 会自动做）。
-
-Claude Code 也可以按插件装 skill（CLI 仍需 `pip install`，skill 第一步会检查）：
-
-```text
-/plugin marketplace add JuneYaooo/rea-video
-/plugin install rea-video@rea-video
-```
-
-首次拆解会自动下载约 67 MB 的人声分离模型（`~/.cache/rea-video/models`）。一条 30 秒视频不开 VLM 约 1 分钟出结果。
-
-装好 skill 后，在 Claude Code / Codex / zcode 里直接说"帮我拆解这条视频 xxx.mp4，看看是不是 AI 做的"即可，agent 会按 [SKILL.md](../skills/rea-video/SKILL.md) 的流程跑：先看记忆 → 拆解 → 看图复核 → 按模板交付。
 
 ## 快速开始
 
@@ -33,15 +22,6 @@ Claude Code 也可以按插件装 skill（CLI 仍需 `pip install`，skill 第�
 
 # 1. 只做确定性取证（离线、免费）
 rea-video decompose ref.mp4 -o out/ref
-
-# 2. 加 VLM（建议，不强制）：让多模态大模型看画面，实拍/AI/3D 判断更准
-#    任意 OpenAI 兼容的多模态模型都行，模型可写多个做备选
-export REA_VLM_BASE_URL=https://.../v1 REA_VLM_API_KEY=... REA_VLM_MODEL=gemini-2.5-pro,gpt-4o
-rea-video decompose ref.mp4 -o out/ref --vlm
-#    或复用 capsule-cinema 的配置：rea-video --env-file ~/code/github/capsule-cinema/.env decompose ref.mp4 -o out/ref --vlm
-#    VLM 调用全部失败时不会中断，报告和 `rea-video summary` 的 "VLM:" 一行会写明"全部调用失败，等同未开"
-
-open out/ref/report.html
 
 # 3. 没有 VLM，但 agent 自己能看图（zcode、Claude Code 等多模态 agent）：让 agent 当 VLM
 rea-video survey ref.mp4 -o out/ref  # 先看全片总览再局部细看：定切点、转场和每镜关键帧（答完再跑同一条命令，直到 done）
@@ -51,7 +31,7 @@ rea-video apply-review out/ref --by zcode   # agent 填完答案后并入结论�
 
 # 4. 用户纠正和偏好会被记住（存在 ~/.rea-video，可用 REA_VIDEO_HOME 改位置）
 rea-video correct out/ref --shots 3 --label still_motion --note "这是定格动画"
-rea-video prefs vlm on && rea-video prefs --note "报告尽量短"
+rea-video prefs --note "报告尽量短"
 rea-video memory
 
 # 只剥离声音：stems/original.wav（原声）、vocals.wav（人声干声）、music.wav（配乐）、effects.wav（音效）
@@ -97,8 +77,8 @@ rea-video capsule-draft out/ref/breakdown.json --capsule-root $CC --capsule-name
 
 | 命令 | 作用 |
 |---|---|
-| `decompose VIDEO [--vlm] [--no-ocr] [--ocr-lang zh\|ja\|ko] [--lang zh\|en] [--no-packaging] [--max-vlm-shots N] [--no-asr] [--asr-lang auto\|bn] [--no-speakers]` | 拆解，输出 breakdown.json、report.html/md、拆片包（`VIDEO.md` + `video/`）、storyboard.jpg、每镜首尾帧，`packaging/`（字幕 SRT、带样式的 ASS、包装时间轴、贴纸截图），以及 `sfx/`（每处音效从原片剪出的一小段，报告音效表里可直接试听）；`--lang en` 让结论、报告、`summary` 输出和 VLM 描述都用英文（默认中文；agent 按用户提问的语言选，`rea-video prefs lang en` 可设成默认；breakdown.json 里的 `*_zh` 字段名保留，内容跟报告语言走）；`--no-packaging` 跳过包装层（省约每分钟 30–50 秒）；`--ocr-lang ja` 用日文识别模型读字幕和花字（首次使用自动下载约 10 MB 到 `$REA_VIDEO_MODELS`，离线时可用 `$REA_OCR_REC_MODEL` 指向本地模型），`rea-video prefs ocr_lang ja` 可设成默认；`--ocr-lang ko` 同理用韩文识别模型（PP-OCRv5，约 14 MB），并关掉文字方向分类（它会把韩文行误判成倒置、读成乱码）；`--max-vlm-shots N` 是最多发给 VLM 的调用数（默认 60），镜头更多时先看最拿不准的，其余只靠确定性取证，`VLM:` 一行会写明送了多少个；装了可选的 `rea-video[asr]` 时会在人声干声上做本地语音识别，带时间的台词写进 `speech.lines` 和报告的脚本表（机器听写，未校对），`--no-asr` 跳过；台词是孟加拉语时加 `--asr-lang bn`，换用孟加拉语识别模型（SenseVoice 不认孟加拉语，会听成英/日/韩文；首次使用自动下载约 90 MB 到 `$REA_VIDEO_MODELS`），`rea-video prefs asr_lang bn` 可设成默认 |
-| `survey VIDEO [-o OUT_DIR] [--vlm] [--no-detail] [--workers N]` | 先看后拆：第一轮把全片排成一张小格总览图（只为找切点，格子小省 token；张数按剪辑快慢定，一半等距、一半放在画面变化多的地方），问每两格之间是同一画面、画面变化多、硬切、转场还是看不清；转场和看不清的地方下一轮放大逐帧再看（总览上已经够密的转场、相邻两帧之间的看不清不再放大，由画面变化曲线定）（转场按变化最大的帧抽，同一轮的任务可以并发，最多三轮）；切点定下来后每镜都上关键帧图（动作多的镜头出候选帧，短镜头几格），让 AI 挑出关键帧、标明是哪一种，并判断画面是怎么做出来的。每张图都填到模型不缩图的大小（约 1568 px / 1.15 MP），一张能放多少格就放多少。问答是 JEV 格式：`state` 放材料，问题带 `criteria`，答案只写选项和概率。结果写进 `survey/timeline.json`（切点、转场时长、每镜关键帧、镜头长度、画面变化曲线、每段底层画面判断），decompose 按它切镜，报告和拆片包的「节奏与关键帧」也来自它。没有 VLM 时由 agent 回答：命令输出要看的图和要写的答案文件，答完再跑同一条命令；`--vlm` 用配置的模型自动答；decompose 开了 VLM 时会自动先跑（`--no-survey` 跳过） |
+| `decompose VIDEO [--no-ocr] [--ocr-lang zh\|ja\|ko] [--lang zh\|en] [--no-packaging] [--max-vlm-shots N] [--no-asr] [--asr-lang auto\|bn] [--no-speakers]` | 拆解，输出 breakdown.json、report.html/md、拆片包（`VIDEO.md` + `video/`）、storyboard.jpg、每镜首尾帧，`packaging/`（字幕 SRT、带样式的 ASS、包装时间轴、贴纸截图），以及 `sfx/`（每处音效从原片剪出的一小段，报告音效表里可直接试听）；`--lang en` 让结论、报告、`summary` 输出和 VLM 描述都用英文（默认中文；agent 按用户提问的语言选，`rea-video prefs lang en` 可设成默认；breakdown.json 里的 `*_zh` 字段名保留，内容跟报告语言走）；`--no-packaging` 跳过包装层（省约每分钟 30–50 秒）；`--ocr-lang ja` 用日文识别模型读字幕和花字（首次使用自动下载约 10 MB 到 `$REA_VIDEO_MODELS`，离线时可用 `$REA_OCR_REC_MODEL` 指向本地模型），`rea-video prefs ocr_lang ja` 可设成默认；`--ocr-lang ko` 同理用韩文识别模型（PP-OCRv5，约 14 MB），并关掉文字方向分类（它会把韩文行误判成倒置、读成乱码）；`--max-vlm-shots N` 是最多发给 VLM 的调用数（默认 60），镜头更多时先看最拿不准的，其余只靠确定性取证，`VLM:` 一行会写明送了多少个；装了可选的 `rea-video[asr]` 时会在人声干声上做本地语音识别，带时间的台词写进 `speech.lines` 和报告的脚本表（机器听写，未校对），`--no-asr` 跳过；台词是孟加拉语时加 `--asr-lang bn`，换用孟加拉语识别模型（SenseVoice 不认孟加拉语，会听成英/日/韩文；首次使用自动下载约 90 MB 到 `$REA_VIDEO_MODELS`），`rea-video prefs asr_lang bn` 可设成默认 |
+| `survey VIDEO [-o OUT_DIR] [--no-detail] [--workers N]` | 先看后拆：第一轮把全片排成一张小格总览图（只为找切点，格子小省 token；张数按剪辑快慢定，一半等距、一半放在画面变化多的地方），问每两格之间是同一画面、画面变化多、硬切、转场还是看不清；转场和看不清的地方下一轮放大逐帧再看（总览上已经够密的转场、相邻两帧之间的看不清不再放大，由画面变化曲线定）（转场按变化最大的帧抽，同一轮的任务可以并发，最多三轮）；切点定下来后每镜都上关键帧图（动作多的镜头出候选帧，短镜头几格），让 AI 挑出关键帧、标明是哪一种，并判断画面是怎么做出来的。每张图都填到模型不缩图的大小（约 1568 px / 1.15 MP），一张能放多少格就放多少。问答是 JEV 格式：`state` 放材料，问题带 `criteria`，答案只写选项和概率。结果写进 `survey/timeline.json`（切点、转场时长、每镜关键帧、镜头长度、画面变化曲线、每段底层画面判断），decompose 按它切镜，报告和拆片包的「节奏与关键帧」也来自它。没有 VLM 时由 agent 回答：命令输出要看的图和要写的答案文件，答完再跑同一条命令；本分支由当前 agent 回答，外部 VLM 已禁用 |
 | `review OUT_DIR` | 给能看图的 agent 生成逐镜看图任务（review_tasks.json）和答案模板（review_answers.json） |
 | `apply-review OUT_DIR [ANSWERS] [--by NAME] [--lang zh\|en]` | 把 agent 看图的答案和确定性结果融合，重写 breakdown.json 和报告；`--lang` 可以在这一步换报告语言（结论、证据和报告文字重新生成，VLM 已写好的描述和提示词保持原语言） |
 | `correct OUT_DIR --shots N --label L [--real yes/no] [--note]` | 用户指出判错：改正结论和报告，并记入记忆（以后同一文件自动套用，同类镜头复核时提示） |

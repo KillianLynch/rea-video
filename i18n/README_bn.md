@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@
 rea-video বানানো হয়েছে AI এজেন্টের জন্য। Claude Code, Codex বা কমান্ড চালাতে পারে এমন যেকোনো এজেন্টকে শুধু বলুন:
 
 ```text
-https://github.com/JuneYaooo/rea-video ইনস্টল করো, তারপর এই ভিডিওটা বিশ্লেষণ করো: /path/to/video.mp4
+https://github.com/KillianLynch/rea-video ইনস্টল করো, তারপর এই ভিডিওটা বিশ্লেষণ করো: /path/to/video.mp4
 ```
 
 এজেন্ট নিজেই CLI ইনস্টল করবে, কাজের ধাপগুলো শিখে নেবে আর শুরু থেকে শেষ পর্যন্ত পুরোটা চালাবে। আপনার লাগবে শুধু ffmpeg আর Python 3.10+।
@@ -143,24 +145,6 @@ rea-video ভিডিও বিশ্লেষণ করার পর [capsule-
 </table>
 
 HD তুলনামূলক ভিডিওগুলোতে মূল অডিও রাখা হয়েছে। মূল ভিডিও আর OiiOii-র ভার্সনগুলো ওই আর্টিকেল থেকে নেওয়া, শুধু তুলনার জন্য দেখানো হয়েছে।
-
-রিমেকটা [ChatCut](https://chatcut.io/r/github-e4rd)-এও করতে পারেন। এটি একটি হোস্টেড AI ভিডিও এডিটর: কোনো মডেল সেটআপ করতে হয় না, আর জেনারেট হওয়া শটগুলো সরাসরি টাইমলাইনে চলে আসে, সেখানে এডিট চালিয়ে যেতে পারবেন। <sub>স্পনসর</sub>
-
-## স্পনসর
-
-rea-video বিনামূল্যে ও ওপেন সোর্স। স্পনসররা এর রক্ষণাবেক্ষণ চালিয়ে যেতে সাহায্য করেন।
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> হলো Claude Code আর Codex-এর জন্য একটি AI ভিডিও এডিটর: শট জেনারেট করে, টাইমলাইনে কাটে আর তৈরি ভিডিও এক্সপোর্ট করে।<br>
-<a href="https://chatcut.io/r/github-e4rd">বিনামূল্যে ChatCut ব্যবহার করে দেখুন</a></td>
-</tr></table>
-
-<sub>স্পনসরড · <a href="https://reavideo.ai/en/contact/">স্পনসর হোন</a></sub>
-
 ## নির্ভুলতা
 
 ভিডিওটা কীভাবে বানানো, সেই রায়ের নির্ভুলতা (শটের দৈর্ঘ্য অনুযায়ী ভারযুক্ত):

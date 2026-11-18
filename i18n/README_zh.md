@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@
 rea-video 是给 AI agent 用的。打开 Claude Code、Codex 这类能跑命令的 agent，直接说：
 
 ```text
-安装 https://github.com/JuneYaooo/rea-video ，然后拆解这条视频：/path/to/video.mp4
+安装 https://github.com/KillianLynch/rea-video ，然后拆解这条视频：/path/to/video.mp4
 ```
 
 agent 会自己装好命令行工具、看懂拆解流程，然后一路跑完。电脑上需要有 ffmpeg 和 Python 3.10 以上。
@@ -141,24 +143,6 @@ rea-video 拆完，交给 [capsule-cinema](https://github.com/JuneYaooo/capsule-
 </table>
 
 高清对比视频的声音用原片。原片和 OiiOii 版取自公众号文章，仅用于对比展示。
-
-也可以用 [ChatCut](https://chatcut.io/r/github-e4rd) 来复刻：不用自己配模型，生成的镜头直接进时间线，可以接着剪。<sub>赞助商</sub>
-
-## 赞助商
-
-rea-video 免费开源，赞助商的支持让它能持续维护。
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> 是在 Claude Code 和 Codex 里用的 AI 视频剪辑工具，能生成镜头、上时间线、加字幕配乐并导出成片。<br>
-<a href="https://chatcut.io/r/github-e4rd">免费试用 ChatCut</a></td>
-</tr></table>
-
-<sub>赞助内容 · <a href="https://reavideo.ai/zh/contact/">成为赞助商</a></sub>
-
 ## 准不准
 
 按镜头时长算的「制作方式」准确率：

@@ -1,35 +1,13 @@
-"""OpenAI-compatible multimodal client (Gemini via proxy, Doubao, GPT, Qwen-VL...).
-
-Config (first non-empty wins):
-  REA_VLM_BASE_URL / REA_VLM_API_KEY / REA_VLM_MODEL
-  VIDEO_ANALYSIS_BASE_URL / VIDEO_ANALYSIS_API_KEY / VIDEO_ANALYSIS_MODEL_NAME   (capsule-cinema)
-  GEMINI3_BASE_URL / GEMINI3_API_KEY / GEMINI3_MODEL_NAME                        (capsule-cinema)
-REA_VLM_MODEL may be a comma-separated fallback list.
-REA_VLM_MEDIA = both | video | frames  (default both: a short clip as data:video/mp4 plus keyframes)
-REA_VLM_VIDEO_PART = image_url | video_url  (how a clip is attached; unset: image_url, switching to video_url by
-                     itself when the endpoint refuses the first form, as DashScope does)
-REA_VLM_REASONING_EFFORT = low | medium | high  (passed through when set; thinking models answer these prompts
-                     several times faster and cheaper on low)
-"""
+"""Agent review prompts and normalization; external VLM uploads are disabled."""
 from __future__ import annotations
 
-import base64
 import copy
-import hashlib
-import http.client
 import json
-import os
 import re
-import threading
-import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import __version__
 from .classify import LABELS
-from .util import LOG
 
 
 @dataclass
@@ -44,66 +22,16 @@ class VLMConfig:
 
     @classmethod
     def from_env(cls) -> "VLMConfig | None":
-        """First complete config wins; later configs on the same endpoint and key add their
-        models as fallbacks (capsule-cinema keeps one model in VIDEO_ANALYSIS_* and a list in GEMINI3_*).
-        A malformed value raises ValueError naming the variable: a typo must fail fast here, not
-        silently run the VLM with no media (bad REA_VLM_MEDIA) or crash mid-run (bad timeout)."""
-        cfg: VLMConfig | None = None
-        for prefix, mkey in (("REA_VLM", "REA_VLM_MODEL"), ("VIDEO_ANALYSIS", "VIDEO_ANALYSIS_MODEL_NAME"), ("GEMINI3", "GEMINI3_MODEL_NAME")):
-            base, key = os.getenv(f"{prefix}_BASE_URL", "").rstrip("/"), os.getenv(f"{prefix}_API_KEY", "")
-            models = [m.strip() for m in os.getenv(mkey, "").split(",") if m.strip()]
-            if not (base and key and models):
-                continue
-            if cfg is None:
-                cfg = cls(base_url=base, api_key=key, models=models,
-                          timeout=_timeout_from_env(), media=_media_from_env(),
-                          video_part=_video_part_from_env(), reasoning_effort=_effort_from_env())
-            elif prefix != "REA_VLM" and base == cfg.base_url and key == cfg.api_key:
-                cfg.models += [m for m in models if m not in cfg.models]
-        return cfg
-
-    def describe(self) -> str:
-        host = re.sub(r"^https?://", "", self.base_url).split("/")[0].rsplit("@", 1)[-1]  # 去掉 user:pass@
-        return f"{','.join(self.models)} @ {host}"
+        """Ignore external model credentials, including legacy environment variables."""
+        return None
 
 
-def _timeout_from_env() -> float:
-    var = "REA_VLM_TIMEOUT" if os.getenv("REA_VLM_TIMEOUT") is not None else "VIDEO_ANALYSIS_TIMEOUT_SECONDS"
-    raw = os.getenv(var, "180")
-    try:
-        timeout = float(raw)
-    except (TypeError, ValueError):
-        raise ValueError(f"{var} must be seconds (a number), got {raw!r}") from None
-    if not timeout > 0:
-        raise ValueError(f"{var} must be more than 0 seconds, got {raw!r}")
-    return timeout
-
-
-def _media_from_env() -> str:
-    media = os.getenv("REA_VLM_MEDIA", "both")
-    if media not in ("both", "video", "frames"):
-        raise ValueError(f"REA_VLM_MEDIA must be both, video or frames, got {media!r}")
-    return media
-
-
-def _video_part_from_env() -> str:
-    part = os.getenv("REA_VLM_VIDEO_PART", "").strip().lower()
-    if part and part not in ("image_url", "video_url"):
-        raise ValueError(f"REA_VLM_VIDEO_PART must be image_url or video_url, got {part!r}")
-    return part
-
-
-def _effort_from_env() -> str:
-    effort = os.getenv("REA_VLM_REASONING_EFFORT", "").strip().lower()
-    if effort and effort not in ("low", "medium", "high"):
-        raise ValueError(f"REA_VLM_REASONING_EFFORT must be low, medium or high, got {effort!r}")
-    return effort
-
-
-SETUP_HINT = ("建议配置 VLM（任意 OpenAI 兼容的多模态模型，如 Gemini / GPT-4o / 豆包 / Qwen-VL）："
-              "设置 REA_VLM_BASE_URL、REA_VLM_API_KEY、REA_VLM_MODEL（可写多个模型逗号分隔做备选），再加 --vlm 重跑")
-SETUP_HINT_EN = ("configure a VLM (any OpenAI-compatible multimodal model, e.g. Gemini / GPT-4o / Doubao / Qwen-VL): "
-                 "set REA_VLM_BASE_URL, REA_VLM_API_KEY and REA_VLM_MODEL (several models comma-separated as fallbacks), then rerun with --vlm")
+EXTERNAL_VLM_DISABLED = (
+    "External VLM API calls are disabled in this fork. "
+    "Use your agent to answer survey/review tasks, then run apply-review."
+)
+SETUP_HINT = "由当前能看图的 agent 完成 survey / review，再运行 apply-review；本分支禁用外部 VLM API"
+SETUP_HINT_EN = "use your image-capable agent for survey / review, then apply-review; external VLM APIs are disabled"
 
 
 def vlm_note(info: dict, review: dict | None = None) -> str:
@@ -145,156 +73,11 @@ def _vlm_note(info: dict) -> str:
              "No VLM; {l}. An agent that can see images: run rea-video review, look at each shot and merge with apply-review; otherwise {h}", l=limited, h=T(SETUP_HINT, SETUP_HINT_EN))
 
 
-def _data_uri(path: Path, mime: str) -> str:
-    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
-
-
-def parse_json(text: str) -> dict:
-    text = text.strip()
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
-    m = re.search(r"\{[\s\S]*\}", text)
-    if not m:
-        raise ValueError("no JSON object in VLM response")
-    out = json.loads(m.group(0))
-    if not isinstance(out, dict):
-        raise ValueError("VLM answer is not a JSON object")
-    return out
-
-
 class VLMClient:
-    # after this many requests in a row fail on every model, stop calling the service for this run
-    MAX_DEAD_REQUESTS = 2
-    REQUEST_ERRORS = (400, 413, 415, 422)  # the endpoint rejects this request's content, not the service being down
+    """Compatibility guard for callers of the removed media-upload client."""
 
     def __init__(self, cfg: VLMConfig, cache_dir: Path | None = None):
-        self.cfg = cfg
-        self.cache_dir = cache_dir
-        self.dead_requests = 0
-        self.models = list(cfg.models)  # reordered: the last model that answered goes first
-        self.video_part = cfg.video_part if cfg.video_part in ("image_url", "video_url") else "image_url"
-        self._part_settled = cfg.video_part in ("image_url", "video_url")  # set by the user, or learned from an answer / a second refusal
-        self._lock = threading.Lock()
-        host = re.sub(r"^https?://", "", cfg.base_url).split("/")[0].rsplit("@", 1)[-1].split(":")[0]
-        if cfg.base_url.lower().startswith("http://") and host not in ("localhost", "127.0.0.1", "::1", "[::1]"):
-            LOG.warning("REA_VLM_BASE_URL 不是 https，API key 会明文发送到 %s", host)
-        if cache_dir:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-
-    @property
-    def gave_up(self) -> bool:
-        return self.dead_requests >= self.MAX_DEAD_REQUESTS
-
-    def _post(self, model: str, content: list[dict], max_tokens: int) -> str:
-        body = json.dumps({"model": model, "messages": [{"role": "user", "content": content}],
-                           "max_tokens": max_tokens, "temperature": 0.2,
-                           **({"reasoning_effort": self.cfg.reasoning_effort} if self.cfg.reasoning_effort else {})}).encode()
-        # urllib's default "Python-urllib/x.y" gets a 403 from some gateways, which looks like a bad key
-        req = urllib.request.Request(self.cfg.base_url + "/chat/completions", data=body, method="POST",
-                                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {self.cfg.api_key}",
-                                              "User-Agent": f"rea-video/{__version__}"})
-        with urllib.request.urlopen(req, timeout=self.cfg.timeout) as resp:
-            data = json.loads(resp.read().decode())
-        try:
-            content = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as exc:  # e.g. "choices": [] after a safety block -> try the next model
-            raise ValueError(f"no answer in VLM response: {str(data)[:160]}") from exc
-        if isinstance(content, list):  # some gateways return content parts
-            content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("empty VLM answer")
-        return content
-
-    def ask_json(self, prompt: str, media: list[tuple[Path, str]], max_tokens: int = 4096) -> dict:
-        # Use the configured order, not self.models: successful fallbacks reorder
-        # the latter during a run. Never include the API key in the cache identity.
-        request = {"prompt": prompt, "base_url": self.cfg.base_url.rstrip("/"),
-                   "models": self.cfg.models, "max_tokens": max_tokens,
-                   **({"reasoning_effort": self.cfg.reasoning_effort} if self.cfg.reasoning_effort else {})}
-        h = hashlib.sha1(json.dumps(request, sort_keys=True, ensure_ascii=False).encode())
-        for p, mime in media:
-            h.update(mime.encode())
-            h.update(hashlib.sha1(p.read_bytes()).digest())
-        key = h.hexdigest()
-        cached = self.cache_dir / f"{key}.json" if self.cache_dir else None
-        if cached and cached.is_file():
-            try:
-                got = json.loads(cached.read_text(encoding="utf-8"))
-                if isinstance(got, dict):
-                    return got
-            except (OSError, ValueError):
-                pass  # a half-written file from an interrupted run: ask again
-        if self.gave_up:
-            raise RuntimeError("VLM skipped: service failed on every model for earlier requests")
-        has_video = any(mime.startswith("video/") for _, mime in media)
-        part = self.video_part
-        swapped = False
-
-        def build(video_part: str) -> list[dict]:
-            parts = [{"type": video_part, video_part: {"url": _data_uri(p, mime)}} if mime.startswith("video/")
-                     else {"type": "image_url", "image_url": {"url": _data_uri(p, mime)}} for p, mime in media]
-            return parts + [{"type": "text", "text": prompt}]
-
-        content = build(part)
-        last: Exception | None = None
-        refused = False
-        for model in list(self.models):
-            for attempt in range(2):
-                try:
-                    t = time.time()
-                    text = self._post(model, content, max_tokens)
-                    out = parse_json(text)
-                    out["_model"] = model
-                    out["_seconds"] = round(time.time() - t, 1)
-                    if cached:
-                        tmp = cached.with_name(f"{cached.name}.{os.getpid()}.{threading.get_ident()}.part")
-                        tmp.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-                        tmp.replace(cached)
-                    with self._lock:  # shots run in a thread pool
-                        self.dead_requests = 0
-                        if has_video:
-                            self.video_part, self._part_settled = part, True
-                        if model in self.models and self.models[0] != model:
-                            self.models.remove(model)
-                            self.models.insert(0, model)
-                    return out
-                except urllib.error.HTTPError as exc:
-                    try:
-                        why = exc.read()[:300].decode(errors="ignore").strip()
-                    except Exception:
-                        why = ""
-                    last = RuntimeError(f"HTTP {exc.code} {exc.reason}: {why}" if why else f"HTTP {exc.code} {exc.reason}")
-                    LOG.warning("VLM %s attempt %d failed: %s", model, attempt + 1, str(last)[:200])
-                    if exc.code in self.REQUEST_ERRORS:
-                        if has_video and not self._part_settled and not swapped:
-                            # some endpoints take a clip only as a video_url part: try that form once
-                            part, swapped = "video_url", True
-                            content = build(part)
-                            continue
-                        if swapped:  # refused both ways: this endpoint does not take clips, stop trying the other form
-                            with self._lock:
-                                self._part_settled = True
-                        # this request is what the endpoint refuses (too large, video not accepted): the same
-                        # bytes will not pass a second time, and other shots are not affected
-                        refused = True
-                        break
-                    if exc.code == 429:
-                        try:
-                            wait = float(exc.headers.get("Retry-After") or 5)
-                        except (TypeError, ValueError):
-                            wait = 5.0
-                        time.sleep(min(max(wait, 1.0), 30.0))
-                    elif 400 <= exc.code < 500 and exc.code != 408:
-                        break  # bad key, unknown model: retrying this model changes nothing, the next one may answer
-                    else:
-                        time.sleep(1.5)
-                except (OSError, http.client.HTTPException, ValueError, KeyError) as exc:
-                    last = exc
-                    LOG.warning("VLM %s attempt %d failed: %s", model, attempt + 1, str(exc)[:200])
-                    time.sleep(1.5)
-        if not refused and not isinstance(last, (ValueError, KeyError)):  # transport/server errors, not a bad answer
-            with self._lock:
-                self.dead_requests += 1
-        raise RuntimeError(f"all VLM models failed: {last}")
+        raise ValueError(EXTERNAL_VLM_DISABLED)
 
 
 SHOT_PROMPT = """你是视频制作逆向工程专家。判断这个镜头的「底层画面」是用什么方式制作的，并给出可复刻的描述。

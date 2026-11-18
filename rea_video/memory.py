@@ -22,8 +22,8 @@ from .util import ASR_LANGS, OCR_LANGS
 
 PREF_KEYS = {
     "engine": "复刻计划默认的视频引擎（decompose / remake-plan 的 --engine）",
-    "vlm": "decompose 是否默认开 VLM：on / off",
-    "env_file": "默认的 VLM 配置文件（等同每次加 --env-file）",
+    "vlm": "Legacy preference (ignored): external VLM is disabled in this fork",
+    "env_file": "Optional integration env file (external VLM is disabled)",
     "stems": "decompose 是否默认做人声/配乐分离：on / off",
     "reviewer": "apply-review 默认的复核者名字",
     "ocr_lang": "字幕/花字 OCR 的语言：zh（中英，默认）/ ja（日文，首次使用自动下载约 10 MB 识别模型）/ ko（韩文，首次使用自动下载约 14 MB 识别模型）",

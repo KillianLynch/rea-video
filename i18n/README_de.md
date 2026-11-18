@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Links: eine TikTok-Werbung, mit dem Handy gedreht. Rechts: ein KI-Remake mit ein
 rea-video ist für KI-Agenten gemacht. Schreib in Claude Code, Codex oder einem anderen Agenten, der Befehle ausführen kann:
 
 ```text
-Installiere https://github.com/JuneYaooo/rea-video und nimm dann dieses Video auseinander: /path/to/video.mp4
+Installiere https://github.com/KillianLynch/rea-video und nimm dann dieses Video auseinander: /path/to/video.mp4
 ```
 
 Der Agent installiert die CLI, liest sich in den Ablauf ein und erledigt den Rest. Voraussetzung sind ffmpeg und Python 3.10+.
@@ -143,24 +145,6 @@ Gleicher Tausch: ein eigenes, neues Produkt; englischer Sticker → chinesische 
 </table>
 
 Die HD-Vergleichsvideos laufen mit dem Originalton. Originale und OiiOii-Versionen stammen aus den Artikeln und sind nur zum Vergleich dabei.
-
-Das Remake geht auch mit [ChatCut](https://chatcut.io/r/github-e4rd), einem gehosteten KI-Videoeditor: Kein Modell muss eingerichtet werden, und die generierten Shots landen auf einer Timeline, die du weiter bearbeiten kannst. <sub>Sponsor</sub>
-
-## Sponsoren
-
-rea-video ist kostenlos und Open Source. Sponsoren helfen, es weiter zu pflegen.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> ist ein KI-Videoeditor für Claude Code und Codex: Er generiert die Shots, schneidet sie auf einer Timeline und exportiert das fertige Video.<br>
-<a href="https://chatcut.io/r/github-e4rd">ChatCut kostenlos testen</a></td>
-</tr></table>
-
-<sub>Gesponsert · <a href="https://reavideo.ai/en/contact/">Sponsor werden</a></sub>
-
 ## Genauigkeit
 
 Wie zuverlässig rea-video erkennt, wie ein Shot entstanden ist (gewichtet nach Shot-Länge):

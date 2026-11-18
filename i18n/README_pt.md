@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@ Esquerda: anúncio do TikTok gravado no celular. Direita: remake feito com IA, c
 O rea-video foi pensado para rodar com agentes de IA. No Claude Code, no Codex ou em qualquer agente que rode comandos, é só pedir:
 
 ```text
-Instala o https://github.com/JuneYaooo/rea-video e depois analisa este vídeo: /path/to/video.mp4
+Instala o https://github.com/KillianLynch/rea-video e depois analisa este vídeo: /path/to/video.mp4
 ```
 
 O agente instala a CLI, aprende o fluxo e roda tudo. Você só precisa ter ffmpeg e Python 3.10+.
@@ -143,24 +145,6 @@ Mesma troca: um produto novo, original; adesivo em inglês → legenda em chinê
 </table>
 
 Os vídeos comparativos em HD usam o áudio original. Os originais e as versões da OiiOii foram tirados dos artigos e estão aqui só para comparação.
-
-Você também pode fazer o remake no [ChatCut](https://chatcut.io/r/github-e4rd), um editor de vídeo com IA hospedado: não precisa configurar nenhum modelo, e as tomadas geradas já caem numa linha do tempo que você pode continuar editando. <sub>Patrocinador</sub>
-
-## Patrocinadores
-
-O rea-video é gratuito e open source. Os patrocinadores ajudam a mantê-lo.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> é um editor de vídeo com IA para Claude Code e Codex que gera as tomadas, monta tudo numa linha do tempo e exporta o vídeo final.<br>
-<a href="https://chatcut.io/r/github-e4rd">Experimente o ChatCut de graça</a></td>
-</tr></table>
-
-<sub>Patrocinado · <a href="https://reavideo.ai/en/contact/">Seja um patrocinador</a></sub>
-
 ## Precisão
 
 Precisão ao identificar como cada plano foi feito, ponderada pela duração de cada plano:

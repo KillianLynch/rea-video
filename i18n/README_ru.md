@@ -1,3 +1,5 @@
+> Personal fork: external VLM uploads are disabled, ONNX Runtime telemetry is disabled before initialization, and agent image review is retained. See [fork setup and privacy](../docs/privacy.md).
+
 <div align="center">
 
 <picture>
@@ -37,7 +39,7 @@
 rea-video рассчитан на работу через ИИ-агента. В Claude Code, Codex или любом другом агенте, который умеет запускать команды, напишите:
 
 ```text
-Установи https://github.com/JuneYaooo/rea-video и разбери это видео: /path/to/video.mp4
+Установи https://github.com/KillianLynch/rea-video и разбери это видео: /path/to/video.mp4
 ```
 
 Агент сам поставит CLI, разберётся, как с ним работать, и всё прогонит. Понадобятся ffmpeg и Python 3.10+.
@@ -143,24 +145,6 @@ rea-video рассчитан на работу через ИИ-агента. В 
 </table>
 
 В HD-видео для сравнения звук оригинальный. Оригиналы и версии OiiOii взяты из статей и показаны только для сравнения.
-
-Ремейк можно сделать и в [ChatCut](https://chatcut.io/r/github-e4rd) — облачном ИИ-видеоредакторе: модель настраивать не нужно, а сгенерированные кадры сразу попадают на таймлайн, где их можно дальше монтировать. <sub>Спонсор</sub>
-
-## Спонсоры
-
-rea-video бесплатный и открытый. Спонсоры помогают его поддерживать.
-
-<table><tr>
-<td align="center" width="200"><a href="https://chatcut.io/r/github-e4rd"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../docs/brand/chatcut-logo-light.svg">
-  <img src="../docs/brand/chatcut-logo-dark.svg" height="32" alt="ChatCut">
-</picture></a></td>
-<td><b><a href="https://chatcut.io/r/github-e4rd">ChatCut</a></b> — ИИ-видеоредактор для Claude Code и Codex: генерирует кадры, собирает их на таймлайне и экспортирует готовое видео.<br>
-<a href="https://chatcut.io/r/github-e4rd">Попробовать ChatCut бесплатно</a></td>
-</tr></table>
-
-<sub>Реклама · <a href="https://reavideo.ai/en/contact/">Стать спонсором</a></sub>
-
 ## Точность
 
 Насколько точно определяется, как сделан кадр (с весом по длительности кадров):
